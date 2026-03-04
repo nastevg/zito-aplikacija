@@ -1,7 +1,7 @@
 const appJson = require("./app.json");
 
 const defaultApiBase =
-  appJson?.expo?.extra?.apiBase || "http://localhost:8000";
+  appJson?.expo?.extra?.apiBase || "https://zito-backend.onrender.com";
 
 module.exports = ({ config }) => ({
   ...config,
@@ -12,4 +12,3 @@ module.exports = ({ config }) => ({
     apiBase: process.env.EXPO_PUBLIC_API_BASE || defaultApiBase,
   },
 });
-

@@ -66,9 +66,10 @@ type CardData = {
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-const DEFAULT_API_BASE =
-  (Constants.expoConfig?.extra?.apiBase as string | undefined) ||
-  (Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000");
+const FALLBACK_API_BASE = "https://zito-backend.onrender.com";
+const configuredApiBase = String(Constants.expoConfig?.extra?.apiBase || "").trim();
+const isLocalApiBase = /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?(\/|$)/i.test(configuredApiBase);
+const DEFAULT_API_BASE = !configuredApiBase || isLocalApiBase ? FALLBACK_API_BASE : configuredApiBase;
 const OAUTH_REDIRECT_URI = "zitoapp://oauth/callback";
 
 const fallbackUser: User = {
