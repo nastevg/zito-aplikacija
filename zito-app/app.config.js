@@ -10,5 +10,11 @@ module.exports = ({ config }) => ({
     ...(appJson.expo.extra || {}),
     // One-time release config by team. End users never type backend URL.
     apiBase: process.env.EXPO_PUBLIC_API_BASE || defaultApiBase,
+    eas: {
+      projectId:
+        process.env.EXPO_PUBLIC_EAS_PROJECT_ID ||
+        appJson?.expo?.extra?.eas?.projectId ||
+        undefined,
+    },
   },
 });

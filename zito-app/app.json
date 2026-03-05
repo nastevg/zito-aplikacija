@@ -2,6 +2,7 @@
   "expo": {
     "name": "zito-app",
     "slug": "zito-app",
+    "owner": "gnastev",
     "scheme": "zitoapp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -26,7 +27,10 @@
       "package": "com.anonymous.zitoapp"
     },
     "extra": {
-      "apiBase": "http://localhost:8000"
+      "apiBase": "http://localhost:8000",
+      "eas": {
+        "projectId": "bdc208da-9d97-4d04-92bc-792c38d0637c"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

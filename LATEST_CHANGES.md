@@ -35,3 +35,22 @@
 - Token is auto-sent to backend via `/push/register`.
 - Manual "Register push" button remains as fallback.
 - Auto-register attempt resets on logout.
+## March 5, 2026 - EAS project linked for push
+- Logged Expo account and initialized EAS project for app `@gnastev/zito-app`.
+- Added Expo owner and EAS project ID in app config:
+  - owner: `gnastev`
+  - projectId: `bdc208da-9d97-4d04-92bc-792c38d0637c`
+- Rebuilt and installed new release APK.
+
+## March 5, 2026 - Push delivery diagnostics and sound enabled
+- Backend push diagnostics improved:
+  - `/push/test` now surfaces Expo ticket errors instead of returning false-success.
+  - auth middleware now returns JWT verify `detail` for easier token debugging.
+- Mobile push diagnostics improved:
+  - push registration now surfaces specific reasons (`missing_eas_project_id`, `missing_firebase_config`, API error details).
+  - test push action now shows concrete backend/Expo error details in UI state.
+- Resolved Android push registration `InvalidCredentials` by completing Expo/Firebase credential linkage.
+- Enabled audible notifications on Android:
+  - `shouldPlaySound` set to `true` in notification handler.
+  - default Android notification channel now explicitly sets `sound: "default"` and vibration pattern.
+- Rebuilt and installed updated Android release APK on connected device; push test confirmed working with sound.

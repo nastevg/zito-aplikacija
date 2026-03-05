@@ -530,7 +530,7 @@ const flyersImage = require("./assets/images/flyers_grid.png");
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
-    shouldPlaySound: false,
+    shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,
     shouldShowList: true,
@@ -1236,6 +1236,8 @@ async function registerForPush(t: (key: string) => string): Promise<string> {
     await Notifications.setNotificationChannelAsync("default", {
       name: "default",
       importance: Notifications.AndroidImportance.MAX,
+      sound: "default",
+      vibrationPattern: [0, 250, 250, 250],
     });
   }
   return token.data;
@@ -1487,7 +1489,21 @@ export default function App() {
       } else {
         setPushState(token);
       }
-    } catch {
+    } catch (error) {
+      const apiError = extractApiErrorMessage(error);
+      const errorMessage = error instanceof Error ? error.message : "";
+      if (errorMessage.includes("missing_eas_project_id")) {
+        setPushState(t("push_missing_project_id"));
+        return;
+      }
+      if (errorMessage.includes("missing_firebase_config")) {
+        setPushState(t("push_missing_firebase"));
+        return;
+      }
+      if (apiError) {
+        setPushState(`${t("state_push_error")} (${apiError})`);
+        return;
+      }
       setPushState(t("state_push_error"));
     }
   };
