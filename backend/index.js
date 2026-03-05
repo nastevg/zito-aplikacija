@@ -54,6 +54,24 @@ function issueToken(userId) {
   return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "7d" });
 }
 
+function normalizeCardNumber(input) {
+  return String(input || "").replace(/\D/g, "");
+}
+
+function isValidCardNumber(cardNumber) {
+  return /^\d{6,16}$/.test(cardNumber);
+}
+
+async function generateUniqueCardNumber() {
+  for (let i = 0; i < 100; i += 1) {
+    const candidate = String(Math.floor(1000000 + Math.random() * 8999999));
+    // eslint-disable-next-line no-await-in-loop
+    const existing = await db.getUserByCardNumber(candidate);
+    if (!existing) return candidate;
+  }
+  throw new Error("card_number_generation_failed");
+}
+
 function getBackendBaseUrl(req) {
   if (BACKEND_PUBLIC_URL) return BACKEND_PUBLIC_URL;
   const protoHeader = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
@@ -119,7 +137,7 @@ async function findOrCreateOAuthUser(provider, identity) {
     passwordHash: await bcrypt.hash(crypto.randomUUID(), 10),
     points: 0,
     coupons: 0,
-    cardNumber: String(Math.floor(1000000 + Math.random() * 8999999)),
+    cardNumber: await generateUniqueCardNumber(),
   };
   await db.createUser(user);
   return user;
@@ -147,22 +165,41 @@ app.get("/health", (_req, res) => {
 });
 
 app.post("/auth/register", async (req, res) => {
-  const { name, email, password } = req.body || {};
-  if (!name || !email || !password) {
+  const { name, email, password, loyaltyCardNumber } = req.body || {};
+  const normalizedName = String(name || "").trim();
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedPassword = String(password || "");
+
+  if (!normalizedName || !normalizedEmail || !normalizedPassword) {
     return res.status(400).json({ error: "name, email, password are required" });
   }
 
-  const exists = await db.getUserByEmail(String(email).toLowerCase());
+  const exists = await db.getUserByEmail(normalizedEmail);
   if (exists) return res.status(409).json({ error: "Email already exists" });
+
+  let assignedCardNumber = "";
+  const submittedCardNumber = normalizeCardNumber(loyaltyCardNumber);
+  if (submittedCardNumber) {
+    if (!isValidCardNumber(submittedCardNumber)) {
+      return res.status(400).json({ error: "Invalid loyalty card number format" });
+    }
+    const existingCardOwner = await db.getUserByCardNumber(submittedCardNumber);
+    if (existingCardOwner) {
+      return res.status(409).json({ error: "Loyalty card is already linked to another profile" });
+    }
+    assignedCardNumber = submittedCardNumber;
+  } else {
+    assignedCardNumber = await generateUniqueCardNumber();
+  }
 
   const user = {
     id: `u${Date.now()}`,
-    name: String(name),
-    email: String(email).toLowerCase(),
-    passwordHash: await bcrypt.hash(String(password), 10),
+    name: normalizedName,
+    email: normalizedEmail,
+    passwordHash: await bcrypt.hash(normalizedPassword, 10),
     points: 0,
     coupons: 0,
-    cardNumber: String(Math.floor(1000000 + Math.random() * 8999999)),
+    cardNumber: assignedCardNumber,
   };
   await db.createUser(user);
 
@@ -320,6 +357,31 @@ app.post("/push/register", requireAuth, (req, res) => {
     .catch((error) => res.status(500).json({ error: String(error) }));
 });
 
+app.post("/push/test", requireAuth, async (req, res) => {
+  const { token, title, body } = req.body || {};
+  const normalizedToken = String(token || "").trim();
+  if (!normalizedToken) return res.status(400).json({ error: "token is required" });
+  if (!normalizedToken.startsWith("ExponentPushToken[")) {
+    return res.status(400).json({ error: "invalid expo push token" });
+  }
+
+  const pushTitle = String(title || "Zito aplikacija");
+  const pushBody = String(body || "Test push notifikacija.");
+
+  try {
+    const pushResult = await sendExpoPush([normalizedToken], pushTitle, pushBody);
+    await db.addNotification({
+      id: `n${Date.now()}`,
+      title: pushTitle,
+      body: pushBody,
+      createdAt: "now",
+    });
+    return res.json({ ok: true, ...pushResult });
+  } catch (error) {
+    return res.status(500).json({ error: "Push test send failed", detail: String(error) });
+  }
+});
+
 app.post("/admin/flyers", requireAdmin, (req, res) => {
   const { title, price, image } = req.body || {};
   if (!title || !price) return res.status(400).json({ error: "title and price are required" });
@@ -375,3 +437,4 @@ start().catch((error) => {
   console.error("Failed to start backend:", error);
   process.exit(1);
 });
+

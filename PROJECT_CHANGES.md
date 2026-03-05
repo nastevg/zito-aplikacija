@@ -263,3 +263,70 @@ Last updated: 2026-03-04
 - Rebuilt and reinstalled release APK after fix.
 - Created release backup folder and archived final APK:
   - `releases/zito-app-release-2026-03-04.apk`
+
+## 27) Registration data minimization + loyalty card linking logic (March 4, 2026)
+- Registration now collects only essential profile fields and optional loyalty card number:
+  - required: `name`, `email`, `password`
+  - optional: `loyaltyCardNumber`
+- Added explicit backend linking rules in `POST /auth/register`:
+  - if loyalty card number is provided, it is normalized and validated.
+  - if the card is already linked to another profile, registration is rejected with clear error.
+  - if no card is provided, backend auto-generates a unique loyalty card number.
+- Added DB lookup support by card number in `backend/db.js`:
+  - `getUserByCardNumber(cardNumber)` for both SQLite and PostgreSQL stores.
+- Mobile registration UI updates in `zito-app/App.tsx`:
+  - added optional field: `Број на лојална картичка (опционално)`.
+  - registration request now sends `loyaltyCardNumber`.
+  - user-facing error messages improved for invalid/already-linked loyalty card cases.
+
+## 30) Home mockup + Cyrillic recovery + thin title outline (March 4, 2026)
+- Fixed major text encoding corruption in `zito-app/App.tsx` (mojibake `�...` / broken Cyrillic) across:
+  - login/register labels and placeholders
+  - tab labels
+  - profile/push messages
+  - fallback demo data and notices
+  - home section labels (`??????? ??????`, `???????? ?????`)
+- Updated Home mockup data and layout to requested structure:
+  - `??????? ??????`: 6 portrait cards, horizontal swipe.
+  - `???????? ?????`: 16 cards inside internal vertical scroll area.
+- Reworked heading effect:
+  - removed duplicated/double-rendered title text layer.
+  - kept single text with thin outline effect (`textShadow`) for cleaner 1px-like border look.
+- Rebuilt release APK and installed on device:
+  - APK: `zito-app/android/app/build/outputs/apk/release/app-release.apk`
+  - Package: `com.anonymous.zitoapp`
+
+## 31) Persistent login across app restarts (March 5, 2026)
+- Added session persistence on mobile so users stay logged in after closing/reopening app.
+- Implemented token storage with AsyncStorage:
+  - store key: `zito.session.token`
+  - token saved after successful Email/Login, Register, and OAuth callback login.
+  - token cleared on manual logout.
+- Added startup session restore flow:
+  - app checks saved token on launch,
+  - auto-loads user/flyers/notifications/card,
+  - enters app directly without showing login when token is valid.
+- Added brief bootstrap state (`?? ??????? ??????...`) while restoring session.
+- Dependency added:
+  - `@react-native-async-storage/async-storage@1.23.1`
+- Rebuilt and installed release APK on Android device.
+
+## 32) Fixed multilingual translations (March 5, 2026)
+- Implemented fixed i18n translation layer in mobile app (`mk`, `en`, `sq`) without auto-translate API.
+- Added language dictionary and runtime translation function (`t(key)`) for major app UI flows.
+- Added persisted language setting:
+  - key: `zito.language.code`
+  - restores on app launch
+  - defaults from device locale when no saved language exists.
+- Added language selector in Profile screen with 3 options:
+  - Macedonian
+  - English
+  - Albanian
+- Integrated translations into:
+  - login/register and scanner texts
+  - home section titles and labels
+  - tab labels
+  - screen titles/subtitles
+  - profile labels/actions
+  - auth/push status and error messages
+- Rebuilt and installed release APK with fixed translations.

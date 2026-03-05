@@ -92,6 +92,10 @@ function createSqliteStore(filePath) {
       const row = await get("SELECT * FROM users WHERE id = ? LIMIT 1", [id]);
       return mapUser(row);
     },
+    async getUserByCardNumber(cardNumber) {
+      const row = await get("SELECT * FROM users WHERE card_number = ? LIMIT 1", [cardNumber]);
+      return mapUser(row);
+    },
     async getFirstUser() {
       const row = await get("SELECT * FROM users ORDER BY id LIMIT 1");
       return mapUser(row);
@@ -168,6 +172,10 @@ function createPgStore(connectionString) {
     },
     async getUserById(id) {
       const r = await q("SELECT * FROM users WHERE id = $1 LIMIT 1", [id]);
+      return mapUser(r.rows[0]);
+    },
+    async getUserByCardNumber(cardNumber) {
+      const r = await q("SELECT * FROM users WHERE card_number = $1 LIMIT 1", [cardNumber]);
       return mapUser(r.rows[0]);
     },
     async getFirstUser() {

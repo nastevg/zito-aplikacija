@@ -1,4 +1,5 @@
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+﻿import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -6,7 +7,8 @@ import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator, useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useEffect, useState, type ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   FlatList,
   Image,
@@ -17,10 +19,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import QRCode from "react-native-qrcode-svg";
 
 type RootStackParamList = {
   Login: undefined;
@@ -63,10 +65,25 @@ type CardData = {
   qrValue: string;
 };
 
+type ThemeMode = "light" | "dark";
+type LanguageCode = "mk" | "en" | "sq" | "tr";
+type ThemePalette = {
+  bg: string;
+  card: string;
+  green: string;
+  text: string;
+  muted: string;
+  border: string;
+  inputBg: string;
+};
+
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const FALLBACK_API_BASE = "https://zito-backend.onrender.com";
+const SESSION_TOKEN_KEY = "zito.session.token";
+const THEME_MODE_KEY = "zito.theme.mode";
+const LANGUAGE_CODE_KEY = "zito.language.code";
 const configuredApiBase = String(Constants.expoConfig?.extra?.apiBase || "").trim();
 const isLocalApiBase = /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?(\/|$)/i.test(configuredApiBase);
 const DEFAULT_API_BASE = !configuredApiBase || isLocalApiBase ? FALLBACK_API_BASE : configuredApiBase;
@@ -99,6 +116,41 @@ const fallbackCard: CardData = {
   qrValue: "ZITO:6899512:u1",
 };
 
+type MockFlyer = {
+  id: string;
+  title: string;
+  price: string;
+  color: string;
+};
+
+const currentFlyersMock: MockFlyer[] = [
+  { id: "c1", title: "Викенд попуст", price: "-20%", color: "#0D8A43" },
+  { id: "c2", title: "Клуб понуда", price: "99 ден.", color: "#107A3E" },
+  { id: "c3", title: "Свежо овошје", price: "49 ден.", color: "#0B6A36" },
+  { id: "c4", title: "Млечни денови", price: "89 ден.", color: "#0D8A43" },
+  { id: "c5", title: "Домашно", price: "129 ден.", color: "#107A3E" },
+  { id: "c6", title: "Семејно", price: "2+1", color: "#0B6A36" },
+];
+
+const bestDealsMock: MockFlyer[] = [
+  { id: "b1", title: "Кафе", price: "79 ден.", color: "#0F8A43" },
+  { id: "b2", title: "Сок", price: "39 ден.", color: "#0D7B3B" },
+  { id: "b3", title: "Чоколадо", price: "59 ден.", color: "#0C6A34" },
+  { id: "b4", title: "Паста", price: "45 ден.", color: "#0F8A43" },
+  { id: "b5", title: "Сирење", price: "129 ден.", color: "#0D7B3B" },
+  { id: "b6", title: "Колбас", price: "149 ден.", color: "#0C6A34" },
+  { id: "b7", title: "Кекс", price: "69 ден.", color: "#0F8A43" },
+  { id: "b8", title: "Млеко", price: "62 ден.", color: "#0D7B3B" },
+  { id: "b9", title: "Масло", price: "89 ден.", color: "#0C6A34" },
+  { id: "b10", title: "Ориз", price: "74 ден.", color: "#0F8A43" },
+  { id: "b11", title: "Сол", price: "29 ден.", color: "#0D7B3B" },
+  { id: "b12", title: "Снек", price: "49 ден.", color: "#0C6A34" },
+  { id: "b13", title: "Чај", price: "55 ден.", color: "#0F8A43" },
+  { id: "b14", title: "Путер", price: "119 ден.", color: "#0D7B3B" },
+  { id: "b15", title: "Јогурт", price: "44 ден.", color: "#0C6A34" },
+  { id: "b16", title: "Бисквити", price: "63 ден.", color: "#0F8A43" },
+];
+
 const colors = {
   bg: "#E9E9E9",
   card: "#FFFFFF",
@@ -107,6 +159,360 @@ const colors = {
   gray: "#505050",
   border: "#D7D7D7",
 };
+
+const LIGHT_THEME: ThemePalette = {
+  bg: "#E9E9E9",
+  card: "#FFFFFF",
+  green: "#0A8F43",
+  text: "#111111",
+  muted: "#505050",
+  border: "#D7D7D7",
+  inputBg: "#FCFCFC",
+};
+
+const DARK_THEME: ThemePalette = {
+  bg: "#121212",
+  card: "#1B1B1B",
+  green: "#31B564",
+  text: "#F3F3F3",
+  muted: "#B4B4B4",
+  border: "#2F2F2F",
+  inputBg: "#242424",
+};
+
+const ThemeContext = createContext<{
+  mode: ThemeMode;
+  palette: ThemePalette;
+  toggleTheme: () => void;
+}>({
+  mode: "light",
+  palette: LIGHT_THEME,
+  toggleTheme: () => {},
+});
+
+function useAppTheme() {
+  return useContext(ThemeContext);
+}
+
+const I18N: Record<LanguageCode, Record<string, string>> = {
+  mk: {
+    loading_profile: "Се вчитува профил...",
+    login: "НАЈАВА",
+    register: "РЕГИСТРАЦИЈА",
+    name_placeholder: "Име и Презиме",
+    email_placeholder: "Е-пошта",
+    loyalty_placeholder: "Број на лојална картичка (опционално)",
+    password_placeholder: "Лозинка",
+    login_email_btn: "Најава со email",
+    create_profile_btn: "Креирај профил",
+    no_profile: "Немаш профил? Регистрирај се",
+    has_profile: "Имаш профил? Најави се",
+    login_google: "Најава со Google",
+    login_facebook: "Најава со Facebook",
+    scan_barcode_camera: "Скенирај баркод со камера",
+    scan_barcode_title: "Скенирај баркод од лојална картичка",
+    scan_barcode_hint: "Порамни го баркодот во средина на камерата.",
+    cancel: "Откажи",
+    camera_permission_error: "Нема дозвола за камера. Овозможи Camera permission во Settings.",
+    invalid_barcode: "Невалиден баркод. Пробај повторно.",
+    barcode_success: "Баркод успешно скениран.",
+    home_current_flyers: "ТЕКОВНИ ЛЕТОЦИ",
+    home_best_deals: "НАЈДОБРИ АКЦИИ",
+    points: "Поени",
+    coupons: "Купони",
+    active_suffix: "активни",
+    tag_zito: "ЖИТО",
+    tag_action: "АКЦИЈА",
+    tab_home: "Почетна",
+    tab_flyers: "Летоци",
+    tab_card: "Картичка",
+    tab_notifications: "Известувања",
+    tab_profile: "Профил",
+    screen_flyers_title: "Дигитални флаери",
+    screen_flyers_subtitle: "Истакнати производи и топ акции",
+    screen_card_title: "Дигитална картичка",
+    screen_card_subtitle: "Жито Клуб",
+    screen_notifications_title: "Нотификации",
+    screen_notifications_subtitle: "Директна и навремена комуникација",
+    screen_profile_title: "Профил",
+    screen_profile_subtitle: "Управување со сметка",
+    name_label: "Име",
+    push_status_label: "Push статус",
+    push_token_label: "Push токен",
+    no_token: "Нема токен",
+    register_push: "Регистрирај push",
+    send_test_push: "Тест push нотификација",
+    refresh_data: "Освежи податоци",
+    logout: "Одјава",
+    language: "Јазик",
+    lang_mk: "Македонски",
+    lang_en: "English",
+    lang_sq: "Shqip",
+    lang_tr: "Türkçe",
+    push_physical_device: "Push работи на физички уред.",
+    push_no_permission: "Нема дозвола за push notifications.",
+    state_unregistered: "Нерегистрирано",
+    state_backend_unavailable: "Backend моментално недостапен.",
+    state_offline_demo: "Офлајн демо режим",
+    state_push_token_generated: "Push токен генериран",
+    state_push_test_sent: "Тест push е испратен.",
+    state_push_register_first: "Прво регистрирај push токен.",
+    state_push_error: "Грешка при push регистрација.",
+    state_refreshed: "Освежено",
+    state_refresh_error: "Не можам да освежам податоци.",
+    auth_oauth_failed: "OAuth најавата не успеа. Пробај повторно.",
+    auth_oauth_data_missing: "OAuth најавата успеа, но backend податоците не се достапни.",
+    auth_invalid_login: "Невалидна најава. Пробај повторно.",
+    auth_card_linked: "Оваа лојална картичка е веќе поврзана со друг профил.",
+    auth_card_invalid: "Невалиден формат на број на лојална картичка.",
+    auth_register_failed: "Регистрацијата не успеа. Провери ги податоците.",
+    auth_invalid_backend_url: "Внеси валиден Backend URL (http/https).",
+    auth_oauth_start_failed: "Не можам да започнам OAuth најава на овој уред.",
+  },
+  en: {
+    loading_profile: "Loading profile...",
+    login: "LOGIN",
+    register: "REGISTER",
+    name_placeholder: "Full Name",
+    email_placeholder: "Email",
+    loyalty_placeholder: "Loyalty card number (optional)",
+    password_placeholder: "Password",
+    login_email_btn: "Login with email",
+    create_profile_btn: "Create profile",
+    no_profile: "No profile? Register",
+    has_profile: "Already have profile? Login",
+    login_google: "Login with Google",
+    login_facebook: "Login with Facebook",
+    scan_barcode_camera: "Scan barcode with camera",
+    scan_barcode_title: "Scan loyalty card barcode",
+    scan_barcode_hint: "Align barcode in the camera center.",
+    cancel: "Cancel",
+    camera_permission_error: "No camera permission. Enable Camera permission in Settings.",
+    invalid_barcode: "Invalid barcode. Try again.",
+    barcode_success: "Barcode scanned successfully.",
+    home_current_flyers: "CURRENT FLYERS",
+    home_best_deals: "BEST DEALS",
+    points: "Points",
+    coupons: "Coupons",
+    active_suffix: "active",
+    tag_zito: "ZITO",
+    tag_action: "DEAL",
+    tab_home: "Home",
+    tab_flyers: "Flyers",
+    tab_card: "Card",
+    tab_notifications: "Alerts",
+    tab_profile: "Profile",
+    screen_flyers_title: "Digital Flyers",
+    screen_flyers_subtitle: "Featured products and top deals",
+    screen_card_title: "Digital Card",
+    screen_card_subtitle: "Zito Club",
+    screen_notifications_title: "Notifications",
+    screen_notifications_subtitle: "Direct and timely communication",
+    screen_profile_title: "Profile",
+    screen_profile_subtitle: "Account management",
+    name_label: "Name",
+    push_status_label: "Push status",
+    push_token_label: "Push token",
+    no_token: "No token",
+    register_push: "Register push",
+    send_test_push: "Send test push",
+    refresh_data: "Refresh data",
+    logout: "Logout",
+    language: "Language",
+    lang_mk: "Macedonian",
+    lang_en: "English",
+    lang_sq: "Albanian",
+    lang_tr: "Turkish",
+    push_physical_device: "Push works on a physical device.",
+    push_no_permission: "No push notification permission.",
+    state_unregistered: "Not registered",
+    state_backend_unavailable: "Backend is currently unavailable.",
+    state_offline_demo: "Offline demo mode",
+    state_push_token_generated: "Push token generated",
+    state_push_test_sent: "Test push sent.",
+    state_push_register_first: "Register push token first.",
+    state_push_error: "Push registration error.",
+    state_refreshed: "Refreshed",
+    state_refresh_error: "Could not refresh data.",
+    auth_oauth_failed: "OAuth login failed. Try again.",
+    auth_oauth_data_missing: "OAuth login succeeded, but backend data is unavailable.",
+    auth_invalid_login: "Invalid login. Try again.",
+    auth_card_linked: "This loyalty card is already linked to another profile.",
+    auth_card_invalid: "Invalid loyalty card number format.",
+    auth_register_failed: "Registration failed. Check your data.",
+    auth_invalid_backend_url: "Enter a valid Backend URL (http/https).",
+    auth_oauth_start_failed: "Cannot start OAuth login on this device.",
+  },
+  sq: {
+    loading_profile: "Duke ngarkuar profilin...",
+    login: "HYRJE",
+    register: "REGJISTRIM",
+    name_placeholder: "Emri dhe Mbiemri",
+    email_placeholder: "Email",
+    loyalty_placeholder: "Numri i karteles së besnikërisë (opsionale)",
+    password_placeholder: "Fjalëkalimi",
+    login_email_btn: "Hyr me email",
+    create_profile_btn: "Krijo profil",
+    no_profile: "Nuk ke profil? Regjistrohu",
+    has_profile: "Ke profil? Hyr",
+    login_google: "Hyr me Google",
+    login_facebook: "Hyr me Facebook",
+    scan_barcode_camera: "Skano barkodin me kamerë",
+    scan_barcode_title: "Skano barkodin e karteles së besnikërisë",
+    scan_barcode_hint: "Vendose barkodin në qendër të kamerës.",
+    cancel: "Anulo",
+    camera_permission_error: "Nuk ka leje për kamerën. Aktivizo Camera permission në Settings.",
+    invalid_barcode: "Barkod i pavlefshëm. Provo përsëri.",
+    barcode_success: "Barkodi u skanua me sukses.",
+    home_current_flyers: "LETËR NJOFTIME AKTIVE",
+    home_best_deals: "AKSIONET MË TË MIRA",
+    points: "Pikë",
+    coupons: "Kuponë",
+    active_suffix: "aktive",
+    tag_zito: "ZHITO",
+    tag_action: "AKSION",
+    tab_home: "Kreu",
+    tab_flyers: "Fletë",
+    tab_card: "Kartela",
+    tab_notifications: "Njoftime",
+    tab_profile: "Profili",
+    screen_flyers_title: "Fletë Digjitale",
+    screen_flyers_subtitle: "Produkte të theksuara dhe oferta kryesore",
+    screen_card_title: "Kartelë Digjitale",
+    screen_card_subtitle: "Zito Klub",
+    screen_notifications_title: "Njoftime",
+    screen_notifications_subtitle: "Komunikim i drejtpërdrejtë dhe në kohë",
+    screen_profile_title: "Profili",
+    screen_profile_subtitle: "Menaxhim i llogarisë",
+    name_label: "Emri",
+    push_status_label: "Statusi i push",
+    push_token_label: "Push token",
+    no_token: "Nuk ka token",
+    register_push: "Regjistro push",
+    send_test_push: "Dergo push test",
+    refresh_data: "Rifresko të dhënat",
+    logout: "Dil",
+    language: "Gjuha",
+    lang_mk: "Maqedonisht",
+    lang_en: "Anglisht",
+    lang_sq: "Shqip",
+    lang_tr: "Turqisht",
+    push_physical_device: "Push funksionon në pajisje fizike.",
+    push_no_permission: "Nuk ka leje për njoftime push.",
+    state_unregistered: "I paregjistruar",
+    state_backend_unavailable: "Backend për momentin i padisponueshëm.",
+    state_offline_demo: "Modalitet demo offline",
+    state_push_token_generated: "Push token i gjeneruar",
+    state_push_test_sent: "Push test u dergua.",
+    state_push_register_first: "Se pari regjistro push token.",
+    state_push_error: "Gabim gjatë regjistrimit push.",
+    state_refreshed: "U rifreskua",
+    state_refresh_error: "Nuk mund të rifreskoj të dhënat.",
+    auth_oauth_failed: "Hyrja OAuth dështoi. Provo përsëri.",
+    auth_oauth_data_missing: "Hyrja OAuth u krye, por të dhënat backend mungojnë.",
+    auth_invalid_login: "Hyrje e pavlefshme. Provo përsëri.",
+    auth_card_linked: "Kjo kartelë është e lidhur me një profil tjetër.",
+    auth_card_invalid: "Format i pavlefshëm i numrit të kartelës.",
+    auth_register_failed: "Regjistrimi dështoi. Kontrollo të dhënat.",
+    auth_invalid_backend_url: "Shkruaj URL të vlefshme të Backend-it (http/https).",
+    auth_oauth_start_failed: "Nuk mund të nis OAuth hyrjen në këtë pajisje.",
+  },
+  tr: {
+    loading_profile: "Profil yükleniyor...",
+    login: "GIRIS",
+    register: "KAYIT",
+    name_placeholder: "Ad Soyad",
+    email_placeholder: "E-posta",
+    loyalty_placeholder: "Sadakat karti numarasi (opsiyonel)",
+    password_placeholder: "Sifre",
+    login_email_btn: "E-posta ile giris",
+    create_profile_btn: "Profil olustur",
+    no_profile: "Profilin yok mu? Kayit ol",
+    has_profile: "Profilin var mi? Giris yap",
+    login_google: "Google ile giris",
+    login_facebook: "Facebook ile giris",
+    scan_barcode_camera: "Kamerayla barkod tara",
+    scan_barcode_title: "Sadakat karti barkodunu tara",
+    scan_barcode_hint: "Barkodu kameranin ortasina hizala.",
+    cancel: "Iptal",
+    camera_permission_error: "Kamera izni yok. Ayarlardan Camera permission etkinlestir.",
+    invalid_barcode: "Gecersiz barkod. Tekrar dene.",
+    barcode_success: "Barkod basariyla tarandi.",
+    home_current_flyers: "GUNCEL BROSURLER",
+    home_best_deals: "EN IYI AKSIYONLAR",
+    points: "Puanlar",
+    coupons: "Kuponlar",
+    active_suffix: "aktif",
+    tag_zito: "ZITO",
+    tag_action: "AKSIYON",
+    tab_home: "Ana Sayfa",
+    tab_flyers: "Brosurler",
+    tab_card: "Kart",
+    tab_notifications: "Bildirimler",
+    tab_profile: "Profil",
+    screen_flyers_title: "Dijital Brosurler",
+    screen_flyers_subtitle: "One cikan urunler ve en iyi aksiyonlar",
+    screen_card_title: "Dijital Kart",
+    screen_card_subtitle: "Zito Kulup",
+    screen_notifications_title: "Bildirimler",
+    screen_notifications_subtitle: "Dogrudan ve zamaninda iletisim",
+    screen_profile_title: "Profil",
+    screen_profile_subtitle: "Hesap yonetimi",
+    name_label: "Ad",
+    push_status_label: "Push durumu",
+    push_token_label: "Push token",
+    no_token: "Token yok",
+    register_push: "Push kaydet",
+    send_test_push: "Test push gonder",
+    refresh_data: "Veriyi yenile",
+    logout: "Cikis",
+    language: "Dil",
+    lang_mk: "Makedonca",
+    lang_en: "Ingilizce",
+    lang_sq: "Arnavutca",
+    lang_tr: "Turkce",
+    push_physical_device: "Push fiziksel cihazda calisir.",
+    push_no_permission: "Push bildirimi izni yok.",
+    state_unregistered: "Kayitli degil",
+    state_backend_unavailable: "Backend su an kullanilamiyor.",
+    state_offline_demo: "Cevrimdisi demo modu",
+    state_push_token_generated: "Push token olusturuldu",
+    state_push_test_sent: "Test push gonderildi.",
+    state_push_register_first: "Once push token kaydet.",
+    state_push_error: "Push kayit hatasi.",
+    state_refreshed: "Yenilendi",
+    state_refresh_error: "Veriler yenilenemedi.",
+    auth_oauth_failed: "OAuth girisi basarisiz. Tekrar dene.",
+    auth_oauth_data_missing: "OAuth girisi basarili ancak backend verisi kullanilamiyor.",
+    auth_invalid_login: "Gecersiz giris. Tekrar dene.",
+    auth_card_linked: "Bu sadakat karti baska bir profile bagli.",
+    auth_card_invalid: "Sadakat karti numarasi formati gecersiz.",
+    auth_register_failed: "Kayit basarisiz. Bilgileri kontrol et.",
+    auth_invalid_backend_url: "Gecerli Backend URL gir (http/https).",
+    auth_oauth_start_failed: "Bu cihazda OAuth girisi baslatilamiyor.",
+  },
+};
+
+const LOGIN_LANGUAGE_OPTIONS: Array<{ code: LanguageCode; flag: string }> = [
+  { code: "mk", flag: "🇲🇰" },
+  { code: "en", flag: "🇬🇧" },
+  { code: "sq", flag: "🇦🇱" },
+  { code: "tr", flag: "🇹🇷" },
+];
+
+const I18nContext = createContext<{
+  language: LanguageCode;
+  setLanguage: (language: LanguageCode) => void;
+  t: (key: string) => string;
+}>({
+  language: "mk",
+  setLanguage: () => {},
+  t: (key: string) => key,
+});
+
+function useI18n() {
+  return useContext(I18nContext);
+}
 
 const logoImage = require("./assets/images/logo.png");
 const tiltedBadgeImage = require("./assets/images/sekogasverninavas_upscaled-removebg-preview.png");
@@ -146,27 +552,101 @@ async function apiPost<T>(baseUrl: string, path: string, body: unknown, token?: 
   return (await res.json()) as T;
 }
 
+function extractApiErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return "";
+  try {
+    const parsed = JSON.parse(error.message);
+    if (parsed && typeof parsed.error === "string") return parsed.error;
+  } catch {
+    // Ignore parse errors and keep fallback.
+  }
+  return error.message || "";
+}
+
 function LoginScreen({
   onEmailLogin,
   onRegister,
   onSocial,
   error,
+  language,
+  onSetLanguage,
 }: {
   onEmailLogin: (email: string, password: string) => void;
-  onRegister: (name: string, email: string, password: string) => void;
+  onRegister: (name: string, email: string, password: string, loyaltyCardNumber: string) => void;
   onSocial: (provider: "google" | "facebook") => void;
   error: string;
+  language: LanguageCode;
+  onSetLanguage: (language: LanguageCode) => void;
 }) {
+  const { palette } = useAppTheme();
+  const { t } = useI18n();
+  const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("korisnik@zito.mk");
   const [password, setPassword] = useState("");
+  const [loyaltyCardNumber, setLoyaltyCardNumber] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanLocked, setScanLocked] = useState(false);
+  const [scanStatus, setScanStatus] = useState("");
   const [logoY, setLogoY] = useState<number | null>(null);
   const badgeTop = logoY == null ? 62 : Math.max(0, logoY / 2 - 30 + 38);
 
+  const handleOpenScanner = async () => {
+    setScanStatus("");
+    setScanLocked(false);
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) {
+        setScanStatus(t("camera_permission_error"));
+        return;
+      }
+    }
+    setIsScannerOpen(true);
+  };
+
+  const handleBarcodeScanned = ({ data }: BarcodeScanningResult) => {
+    if (scanLocked) return;
+    setScanLocked(true);
+    const digits = String(data || "").replace(/\D/g, "");
+    if (!digits) {
+      setScanStatus(t("invalid_barcode"));
+      setScanLocked(false);
+      return;
+    }
+    setLoyaltyCardNumber(digits.slice(0, 16));
+    setScanStatus(t("barcode_success"));
+    setIsScannerOpen(false);
+  };
+
+  if (isScannerOpen) {
+    return (
+      <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
+        <View style={styles.scannerWrap}>
+          <CameraView
+            style={styles.scannerCamera}
+            facing="back"
+            barcodeScannerSettings={{
+              barcodeTypes: ["ean13", "ean8", "code128", "code39", "upc_a", "upc_e", "itf14"],
+            }}
+            onBarcodeScanned={scanLocked ? undefined : handleBarcodeScanned}
+          />
+          <View style={styles.scannerOverlay}>
+            <Text style={styles.scannerTitle}>{t("scan_barcode_title")}</Text>
+            <Text style={styles.scannerHint}>{t("scan_barcode_hint")}</Text>
+            <Pressable style={styles.scannerCloseBtn} onPress={() => setIsScannerOpen(false)}>
+              <Text style={styles.scannerCloseBtnText}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
       <View style={styles.loginWrap}>
         <Image source={tiltedBadgeImage} style={[styles.tiltedBadgeImage, { top: badgeTop }]} resizeMode="contain" />
         <Image
@@ -175,35 +655,54 @@ function LoginScreen({
           resizeMode="contain"
           onLayout={(e) => setLogoY(e.nativeEvent.layout.y)}
         />
-        <Text style={styles.loginTitle}>{mode === "login" ? "НАЈАВА" : "РЕГИСТРАЦИЈА"}</Text>
+        <Text style={[styles.loginTitle, { color: palette.green }]}>{mode === "login" ? t("login") : t("register")}</Text>
 
         {mode === "register" ? (
           <TextInput
             value={name}
             onChangeText={setName}
-            placeholder="Име и Презиме"
+            placeholder={t("name_placeholder")}
             placeholderTextColor="#9A9A9A"
-            style={styles.input}
+            style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
           />
         ) : null}
         <TextInput
           value={email}
           onChangeText={setEmail}
-          placeholder="Email"
+          placeholder={t("email_placeholder")}
           placeholderTextColor="#9A9A9A"
-          style={styles.input}
+          style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
           textContentType="emailAddress"
         />
+        {mode === "register" ? (
+          <>
+            <TextInput
+              value={loyaltyCardNumber}
+              onChangeText={(text) => setLoyaltyCardNumber(text.replace(/\D/g, ""))}
+              placeholder={t("loyalty_placeholder")}
+              placeholderTextColor="#9A9A9A"
+              style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
+              keyboardType="number-pad"
+              textContentType="none"
+              maxLength={16}
+            />
+            <Pressable style={styles.scanBtn} onPress={() => void handleOpenScanner()}>
+              <Ionicons name="scan-outline" size={18} color={colors.green} />
+              <Text style={styles.scanBtnText}>{t("scan_barcode_camera")}</Text>
+            </Pressable>
+            {scanStatus ? <Text style={styles.scanStatusText}>{scanStatus}</Text> : null}
+          </>
+        ) : null}
         <View style={styles.passwordWrap}>
           <TextInput
             value={password}
             onChangeText={(text) => setPassword(text.replace(/[\u200E\u200F\u202A-\u202E]/g, ""))}
-            placeholder="Лозинка"
+            placeholder={t("password_placeholder")}
             placeholderTextColor="#9A9A9A"
-            style={[styles.input, styles.passwordInput]}
+            style={[styles.input, styles.passwordInput, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="default"
@@ -220,7 +719,7 @@ function LoginScreen({
             <Ionicons
               name={showPassword ? "eye-off-outline" : "eye-outline"}
               size={20}
-              color="#6E6E6E"
+            color={palette.muted}
             />
           </Pressable>
         </View>
@@ -230,29 +729,42 @@ function LoginScreen({
           onPress={() =>
             mode === "login"
               ? onEmailLogin(email.trim(), password)
-              : onRegister(name.trim(), email.trim(), password)
+              : onRegister(name.trim(), email.trim(), password, loyaltyCardNumber.trim())
           }
         >
-          <Text style={styles.primaryBtnText}>{mode === "login" ? "Најава со email" : "Креирај профил"}</Text>
+          <Text style={styles.primaryBtnText}>{mode === "login" ? t("login_email_btn") : t("create_profile_btn")}</Text>
         </Pressable>
 
         <Pressable style={styles.switchBtn} onPress={() => setMode(mode === "login" ? "register" : "login")}>
           <Text style={styles.switchBtnText}>
-            {mode === "login" ? "Немаш профил? Регистрирај се" : "Имаш профил? Најави се"}
+            {mode === "login" ? t("no_profile") : t("has_profile")}
           </Text>
         </Pressable>
 
         <LoginBtn
           icon={<Ionicons name="logo-google" size={20} color="#4285F4" />}
-          text="Најава со Google"
+          text={t("login_google")}
           onPress={() => onSocial("google")}
         />
         <LoginBtn
           icon={<Ionicons name="logo-facebook" size={20} color="#1877F2" />}
-          text="Најава со Facebook"
+          text={t("login_facebook")}
           onPress={() => onSocial("facebook")}
         />
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      </View>
+      <View style={[styles.loginLangDock, { bottom: Math.max(insets.bottom, 8) }]}>
+        <View style={styles.loginLangRow}>
+          {LOGIN_LANGUAGE_OPTIONS.map((option) => (
+            <Pressable
+              key={option.code}
+              style={[styles.loginLangChip, language === option.code && styles.loginLangChipActive]}
+              onPress={() => onSetLanguage(option.code)}
+            >
+              <Text style={styles.loginLangFlag}>{option.flag}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -267,33 +779,172 @@ function LoginBtn({
   text: string;
   onPress: () => void;
 }) {
+  const { palette } = useAppTheme();
   return (
-    <Pressable style={styles.loginBtn} onPress={onPress}>
+    <Pressable style={[styles.loginBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={onPress}>
       {icon}
-      <Text style={styles.loginBtnText}>{text}</Text>
+      <Text style={[styles.loginBtnText, { color: palette.text }]}>{text}</Text>
     </Pressable>
   );
 }
 
-function HomeScreen({ user }: { user: User }) {
+function BarcodeStrip({ value, height = 64 }: { value: string; height?: number }) {
+  const normalized = (value || "").replace(/\D/g, "") || "000000";
+  const bars: number[] = [];
+
+  for (let i = 0; i < normalized.length; i += 1) {
+    const digit = Number(normalized[i]) || 0;
+    bars.push(2, 1);
+    for (let j = 0; j < 5; j += 1) {
+      bars.push((digit + j) % 2 === 0 ? 2 : 1);
+    }
+    bars.push(1);
+  }
+
   return (
-    <ScreenWrap title="Жито апликација" subtitle="Банери, новости и понуди">
-      <View style={styles.banner}>
-        <Text style={styles.bannerTitle}>Нови летоци</Text>
-        <Text style={styles.bannerText}>Погледни ги најновите неделни акции</Text>
-      </View>
-      <Image source={bannerImage} style={styles.heroBanner} resizeMode="cover" />
-      <View style={styles.infoRow}>
-        <InfoCard title="Поени" value={`${user.points}`} />
-        <InfoCard title="Купони" value={`${user.coupons} активни`} />
-      </View>
-    </ScreenWrap>
+    <View style={[styles.barcodeCanvas, { height }]}>
+      {bars.map((w, idx) => (
+        <View key={`${idx}-${w}`} style={[styles.barcodeBar, { width: w + 1 }]} />
+      ))}
+    </View>
   );
 }
 
-function FlyersScreen({ flyers }: { flyers: Flyer[] }) {
+function HomeScreen({ user, card }: { user: User; card: CardData }) {
+  const { mode, palette, toggleTheme } = useAppTheme();
+  const { t } = useI18n();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const showcaseSectionHeight = Math.max(236, Math.min(302, Math.floor(windowHeight * 0.325)));
+  const currentCardHeight = Math.max(128, showcaseSectionHeight - 104);
+  const currentCardWidth = Math.max(96, Math.min(132, Math.round(currentCardHeight * 0.62)));
+  const bestDealCardWidth = Math.floor((windowWidth - 32 - 20 - 24) / 3);
+  const currentFlyersGap = 10;
+  const currentFlyersItemSize = currentCardWidth + currentFlyersGap;
+  const baseFlyersCount = currentFlyersMock.length;
+  const endlessFlyers = useMemo(
+    () => [...currentFlyersMock, ...currentFlyersMock, ...currentFlyersMock],
+    [],
+  );
+  const flyersListRef = useRef<FlatList<MockFlyer> | null>(null);
+
+  useEffect(() => {
+    const targetIndex = baseFlyersCount;
+    const timer = setTimeout(() => {
+      flyersListRef.current?.scrollToIndex({ index: targetIndex, animated: false });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [baseFlyersCount, currentFlyersItemSize]);
+
+  const recenterFlyersIfNeeded = (offsetX: number) => {
+    const rawIndex = Math.round(offsetX / currentFlyersItemSize);
+    if (rawIndex < baseFlyersCount) {
+      flyersListRef.current?.scrollToIndex({ index: rawIndex + baseFlyersCount, animated: false });
+      return;
+    }
+    if (rawIndex >= baseFlyersCount * 2) {
+      flyersListRef.current?.scrollToIndex({ index: rawIndex - baseFlyersCount, animated: false });
+    }
+  };
+
   return (
-    <ScreenWrap title="Дигитални флаери" subtitle="Истакнати производи и топ акции">
+    <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
+      <View style={[styles.homeFixedWrap, { paddingBottom: insets.bottom + 8 }]}> 
+        <Pressable style={[styles.themeToggleBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={toggleTheme}>
+          <Ionicons
+            name={mode === "light" ? "moon-outline" : "sunny-outline"}
+            size={18}
+            color={palette.green}
+          />
+        </Pressable>
+        <Image source={logoImage} style={styles.homeTopLogo} resizeMode="contain" />
+        <View style={[styles.homeBarcodeWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <BarcodeStrip value={card.barcode} height={46} />
+          <Text style={[styles.homeBarcodeDigits, { color: palette.text }]}>{card.barcode}</Text>
+        </View>
+
+        <View style={[styles.showcaseSection, { height: showcaseSectionHeight, backgroundColor: palette.card, borderColor: palette.border }]}>
+          <OutlinedHeader text={t("home_current_flyers")} />
+          <FlatList
+            ref={flyersListRef}
+            data={endlessFlyers}
+            horizontal
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.currentFlyersRow}
+            ItemSeparatorComponent={() => <View style={{ width: currentFlyersGap }} />}
+            getItemLayout={(_, index) => ({
+              length: currentFlyersItemSize,
+              offset: currentFlyersItemSize * index,
+              index,
+            })}
+            initialScrollIndex={baseFlyersCount}
+            onMomentumScrollEnd={(event) => recenterFlyersIfNeeded(event.nativeEvent.contentOffset.x)}
+            onScrollToIndexFailed={(info) => {
+              setTimeout(() => flyersListRef.current?.scrollToIndex({ index: info.index, animated: false }), 50);
+            }}
+            renderItem={({ item }) => (
+              <View
+                style={[styles.currentFlyerCard, { backgroundColor: item.color, width: currentCardWidth, minHeight: currentCardHeight }]}
+              >
+                <Text style={styles.mockFlyerTag}>{t("tag_zito")}</Text>
+                <Text style={styles.currentFlyerTitle}>{item.title}</Text>
+                <Text style={styles.currentFlyerPrice}>{item.price}</Text>
+              </View>
+            )}
+          />
+        </View>
+
+        <View style={[styles.showcaseSection, styles.bestDealsSection, { height: showcaseSectionHeight, backgroundColor: palette.card, borderColor: palette.border }]}>
+          <OutlinedHeader text={t("home_best_deals")} />
+          <ScrollView
+            style={styles.bestDealsScroll}
+            contentContainerStyle={styles.bestDealsGrid}
+            showsVerticalScrollIndicator
+            nestedScrollEnabled
+          >
+            {bestDealsMock.map((item) => (
+              <View key={item.id} style={[styles.bestDealCard, { backgroundColor: item.color, width: bestDealCardWidth }]}> 
+                <Text style={styles.mockFlyerTag}>{t("tag_action")}</Text>
+                <Text style={styles.bestDealTitle}>{item.title}</Text>
+                <Text style={styles.bestDealPrice}>{item.price}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.infoRow}>
+          <InfoCard title={t("points")} value={`${user.points}`} />
+          <InfoCard title={t("coupons")} value={`${user.coupons} ${t("active_suffix")}`} />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function OutlinedHeader({ text }: { text: string }) {
+  const { palette } = useAppTheme();
+  return (
+    <View style={[styles.outlinedTitleWrap, { borderBottomColor: palette.green }]}>
+      <Text
+        style={[
+          styles.showcaseHeaderMain,
+          { color: palette.green, textShadowColor: modeShadowColor(palette.green) },
+        ]}
+      >
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+function modeShadowColor(green: string) {
+  return green === LIGHT_THEME.green ? "#0A5D30" : "#1E6A3A";
+}
+function FlyersScreen({ flyers }: { flyers: Flyer[] }) {
+  const { t } = useI18n();
+  return (
+    <ScreenWrap title={t("screen_flyers_title")} subtitle={t("screen_flyers_subtitle")}>
       <FlatList
         data={flyers}
         keyExtractor={(item) => item.id}
@@ -313,16 +964,16 @@ function FlyersScreen({ flyers }: { flyers: Flyer[] }) {
 }
 
 function CardScreen({ card }: { card: CardData }) {
+  const { palette } = useAppTheme();
+  const { t } = useI18n();
   return (
-    <ScreenWrap title="Дигитална картичка" subtitle="Жито Клуб">
-      <View style={styles.cardBox}>
+    <ScreenWrap title={t("screen_card_title")} subtitle={t("screen_card_subtitle")}>
+      <View style={[styles.cardBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Image source={logoImage} style={styles.cardLogo} resizeMode="contain" />
-        <Text style={styles.cardNumber}>{card.cardNumber}</Text>
-        <View style={styles.barcodeWrap}>
-          <Text style={styles.barcodeText}>{card.barcode}</Text>
-        </View>
-        <View style={styles.qrWrap}>
-          <QRCode value={card.qrValue} size={130} />
+        <Text style={[styles.cardNumber, { color: palette.muted }]}>{card.cardNumber}</Text>
+        <View style={[styles.barcodeWrap, { backgroundColor: palette.inputBg, borderColor: palette.border }]}>
+          <BarcodeStrip value={card.barcode} height={86} />
+          <Text style={[styles.barcodeDigits, { color: palette.text }]}>{card.barcode}</Text>
         </View>
       </View>
     </ScreenWrap>
@@ -330,8 +981,9 @@ function CardScreen({ card }: { card: CardData }) {
 }
 
 function NotificationsScreen({ notices }: { notices: Notice[] }) {
+  const { t } = useI18n();
   return (
-    <ScreenWrap title="Нотификации" subtitle="Директна и навремена комуникација">
+    <ScreenWrap title={t("screen_notifications_title")} subtitle={t("screen_notifications_subtitle")}>
       {notices.map((notice) => (
         <View key={notice.id} style={styles.notificationCard}>
           <Text style={styles.notificationTitle}>{notice.title}</Text>
@@ -347,44 +999,71 @@ function ProfileScreen({
   user,
   pushToken,
   pushState,
+  language,
+  onSetLanguage,
   onRegisterPush,
+  onSendTestPush,
   onRefresh,
   onLogout,
 }: {
   user: User;
   pushToken: string;
   pushState: string;
+  language: LanguageCode;
+  onSetLanguage: (language: LanguageCode) => void;
   onRegisterPush: () => void;
+  onSendTestPush: () => void;
   onRefresh: () => void;
   onLogout: () => void;
 }) {
+  const { t } = useI18n();
   return (
-    <ScreenWrap title="Профил" subtitle="Управување со сметка">
-      <InfoCard title="Име" value={user.name} />
+    <ScreenWrap title={t("screen_profile_title")} subtitle={t("screen_profile_subtitle")}>
+      <InfoCard title={t("name_label")} value={user.name} />
       <InfoCard title="Email" value={user.email} />
-      <InfoCard title="Push статус" value={pushState} />
-      <InfoCard title="Push токен" value={pushToken || "Нема токен"} />
+      <InfoCard title={t("push_status_label")} value={pushState} />
+      <InfoCard title={t("push_token_label")} value={pushToken || t("no_token")} />
+      <Text style={[styles.infoTitle, { marginTop: 10 }]}>{t("language")}</Text>
+      <View style={styles.langRow}>
+        <Pressable style={[styles.langChip, language === "mk" && styles.langChipActive]} onPress={() => onSetLanguage("mk")}>
+          <Text style={[styles.langChipText, language === "mk" && styles.langChipTextActive]}>{t("lang_mk")}</Text>
+        </Pressable>
+        <Pressable style={[styles.langChip, language === "en" && styles.langChipActive]} onPress={() => onSetLanguage("en")}>
+          <Text style={[styles.langChipText, language === "en" && styles.langChipTextActive]}>{t("lang_en")}</Text>
+        </Pressable>
+        <Pressable style={[styles.langChip, language === "sq" && styles.langChipActive]} onPress={() => onSetLanguage("sq")}>
+          <Text style={[styles.langChipText, language === "sq" && styles.langChipTextActive]}>{t("lang_sq")}</Text>
+        </Pressable>
+        <Pressable style={[styles.langChip, language === "tr" && styles.langChipActive]} onPress={() => onSetLanguage("tr")}>
+          <Text style={[styles.langChipText, language === "tr" && styles.langChipTextActive]}>{t("lang_tr")}</Text>
+        </Pressable>
+      </View>
       <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onRegisterPush}>
         <Ionicons name="notifications-outline" size={20} color={colors.green} />
-        <Text style={[styles.loginBtnText, { color: colors.green }]}>Регистрирај push</Text>
+        <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("register_push")}</Text>
+      </Pressable>
+      <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onSendTestPush}>
+        <Ionicons name="send-outline" size={20} color={colors.green} />
+        <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("send_test_push")}</Text>
       </Pressable>
       <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onRefresh}>
         <MaterialIcons name="refresh" size={20} color={colors.green} />
-        <Text style={[styles.loginBtnText, { color: colors.green }]}>Освежи податоци</Text>
+        <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("refresh_data")}</Text>
       </Pressable>
       <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onLogout}>
         <Ionicons name="log-out-outline" size={20} color={colors.green} />
-        <Text style={[styles.loginBtnText, { color: colors.green }]}>Одјава</Text>
+        <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("logout")}</Text>
       </Pressable>
     </ScreenWrap>
   );
 }
 
 function InfoCard({ title, value }: { title: string; value: string }) {
+  const { palette } = useAppTheme();
   return (
-    <View style={styles.infoCard}>
-      <Text style={styles.infoTitle}>{title}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <View style={[styles.infoCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <Text style={[styles.infoTitle, { color: palette.muted }]}>{title}</Text>
+      <Text style={[styles.infoValue, { color: palette.text }]}>{value}</Text>
     </View>
   );
 }
@@ -398,17 +1077,18 @@ function ScreenWrap({
   subtitle: string;
   children: ReactNode;
 }) {
+  const { palette } = useAppTheme();
   const tabBarHeight = useBottomTabBarHeight();
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: tabBarHeight + 20 },
         ]}
       >
-        <Text style={styles.screenTitle}>{title}</Text>
-        <Text style={styles.screenSubtitle}>{subtitle}</Text>
+        <Text style={[styles.screenTitle, { color: palette.text }]}>{title}</Text>
+        <Text style={[styles.screenSubtitle, { color: palette.muted }]}>{subtitle}</Text>
         {children}
       </ScrollView>
     </SafeAreaView>
@@ -422,7 +1102,10 @@ function MainTabs({
   card,
   pushToken,
   pushState,
+  language,
+  onSetLanguage,
   onRegisterPush,
+  onSendTestPush,
   onRefresh,
   onLogout,
 }: {
@@ -432,10 +1115,15 @@ function MainTabs({
   card: CardData;
   pushToken: string;
   pushState: string;
+  language: LanguageCode;
+  onSetLanguage: (language: LanguageCode) => void;
   onRegisterPush: () => void;
+  onSendTestPush: () => void;
   onRefresh: () => void;
   onLogout: () => void;
 }) {
+  const { palette } = useAppTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const tabBottomPadding = Math.max(insets.bottom, Platform.OS === "android" ? 10 : 8);
   const tabHeight = 56 + tabBottomPadding;
@@ -444,11 +1132,11 @@ function MainTabs({
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: colors.green,
-        tabBarInactiveTintColor: "#606060",
+        tabBarActiveTintColor: palette.green,
+        tabBarInactiveTintColor: palette.muted,
         tabBarStyle: {
-          borderTopColor: colors.border,
-          backgroundColor: colors.card,
+          borderTopColor: palette.border,
+          backgroundColor: palette.card,
           height: tabHeight,
           paddingBottom: tabBottomPadding,
           paddingTop: 6,
@@ -471,25 +1159,28 @@ function MainTabs({
         },
       })}
     >
-      <Tab.Screen name="Home" options={{ title: "Почетна" }}>
-        {() => <HomeScreen user={user} />}
+      <Tab.Screen name="Home" options={{ title: t("tab_home") }}>
+        {() => <HomeScreen user={user} card={card} />}
       </Tab.Screen>
-      <Tab.Screen name="Flyers" options={{ title: "Летоци" }}>
+      <Tab.Screen name="Flyers" options={{ title: t("tab_flyers") }}>
         {() => <FlyersScreen flyers={flyers} />}
       </Tab.Screen>
-      <Tab.Screen name="Card" options={{ title: "Картичка" }}>
+      <Tab.Screen name="Card" options={{ title: t("tab_card") }}>
         {() => <CardScreen card={card} />}
       </Tab.Screen>
-      <Tab.Screen name="Notifications" options={{ title: "Известувања" }}>
+      <Tab.Screen name="Notifications" options={{ title: t("tab_notifications") }}>
         {() => <NotificationsScreen notices={notices} />}
       </Tab.Screen>
-      <Tab.Screen name="Profile" options={{ title: "Профил" }}>
+      <Tab.Screen name="Profile" options={{ title: t("tab_profile") }}>
         {() => (
           <ProfileScreen
             user={user}
             pushToken={pushToken}
             pushState={pushState}
+            language={language}
+            onSetLanguage={onSetLanguage}
             onRegisterPush={onRegisterPush}
+            onSendTestPush={onSendTestPush}
             onRefresh={onRefresh}
             onLogout={onLogout}
           />
@@ -499,15 +1190,15 @@ function MainTabs({
   );
 }
 
-async function registerForPush(): Promise<string> {
-  if (!Device.isDevice) return "Push работи на физички уред.";
+async function registerForPush(t: (key: string) => string): Promise<string> {
+  if (!Device.isDevice) return t("push_physical_device");
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
   if (existingStatus !== "granted") {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
-  if (finalStatus !== "granted") return "Нема дозвола за push notifications.";
+  if (finalStatus !== "granted") return t("push_no_permission");
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
@@ -524,17 +1215,53 @@ async function registerForPush(): Promise<string> {
 }
 
 export default function App() {
+  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
+  const [language, setLanguageState] = useState<LanguageCode>("mk");
   const [loggedIn, setLoggedIn] = useState(false);
   const [authToken, setAuthToken] = useState("");
   const [authError, setAuthError] = useState("");
+  const [isAuthBootstrapping, setIsAuthBootstrapping] = useState(true);
   const apiBase = DEFAULT_API_BASE;
+  const palette = themeMode === "dark" ? DARK_THEME : LIGHT_THEME;
+  const t = (key: string) => I18N[language][key] ?? I18N.mk[key] ?? key;
 
   const [user, setUser] = useState<User>(fallbackUser);
   const [flyers, setFlyers] = useState<Flyer[]>(fallbackFlyers);
   const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
   const [card, setCard] = useState<CardData>(fallbackCard);
   const [pushToken, setPushToken] = useState("");
-  const [pushState, setPushState] = useState("Нерегистрирано");
+  const [pushState, setPushState] = useState(t("state_unregistered"));
+  const autoPushAttemptedRef = useRef(false);
+
+  const saveSessionToken = async (token: string) => {
+    if (!token) return;
+    try {
+      await AsyncStorage.setItem(SESSION_TOKEN_KEY, token);
+    } catch {
+      // Ignore storage errors.
+    }
+  };
+
+  const clearSessionToken = async () => {
+    try {
+      await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
+    } catch {
+      // Ignore storage errors.
+    }
+  };
+
+  const toggleTheme = () => {
+    setThemeMode((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      void AsyncStorage.setItem(THEME_MODE_KEY, next);
+      return next;
+    });
+  };
+
+  const setLanguage = (nextLanguage: LanguageCode) => {
+    setLanguageState(nextLanguage);
+    void AsyncStorage.setItem(LANGUAGE_CODE_KEY, nextLanguage);
+  };
 
   const consumeOAuthCallback = async (url: string) => {
     if (!url.startsWith(OAUTH_REDIRECT_URI)) return;
@@ -544,7 +1271,7 @@ export default function App() {
     const oauthError = params.get("error");
 
     if (oauthError) {
-      setAuthError("OAuth најавата не успеа. Пробај повторно.");
+      setAuthError(t("auth_oauth_failed"));
       return;
     }
     if (!token) return;
@@ -552,10 +1279,11 @@ export default function App() {
     try {
       setAuthError("");
       setAuthToken(token);
+      await saveSessionToken(token);
       setLoggedIn(true);
       await loadData(token);
     } catch {
-      setAuthError("OAuth најавата успеа, но backend податоците не се достапни.");
+      setAuthError(t("auth_oauth_data_missing"));
     }
   };
 
@@ -573,11 +1301,74 @@ export default function App() {
   };
 
   useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(THEME_MODE_KEY)
+      .then((stored) => {
+        if (!mounted) return;
+        if (stored === "dark" || stored === "light") {
+          setThemeMode(stored);
+        }
+      })
+      .catch(() => {
+        // Ignore theme restore errors.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(LANGUAGE_CODE_KEY)
+      .then((stored) => {
+        if (!mounted) return;
+        if (stored === "mk" || stored === "en" || stored === "sq" || stored === "tr") {
+          setLanguageState(stored);
+          return;
+        }
+        const locale = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase();
+        if (locale.startsWith("en")) setLanguageState("en");
+        if (locale.startsWith("sq")) setLanguageState("sq");
+        if (locale.startsWith("tr")) setLanguageState("tr");
+      })
+      .catch(() => {
+        // Ignore language restore errors.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const restoreSession = async () => {
+      try {
+        const savedToken = await AsyncStorage.getItem(SESSION_TOKEN_KEY);
+        if (savedToken) {
+          setAuthToken(savedToken);
+          await loadData(savedToken);
+          if (mounted) setLoggedIn(true);
+        }
+      } catch {
+        await clearSessionToken();
+      } finally {
+        if (mounted) setIsAuthBootstrapping(false);
+      }
+    };
+
+    void restoreSession();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!loggedIn || !authToken) return;
     void loadData(authToken).catch(() => {
-      setPushState("Backend моментално недостапен.");
+      setPushState(t("state_backend_unavailable"));
     });
-  }, [loggedIn, authToken]);
+  }, [loggedIn, authToken, language]);
 
   useEffect(() => {
     const sub = Linking.addEventListener("url", (event) => {
@@ -596,6 +1387,7 @@ export default function App() {
       setAuthError("");
       const res = await apiPost<{ token: string; user: User }>(apiBase, "/auth/login", { email, password });
       setAuthToken(res.token);
+      await saveSessionToken(res.token);
       setUser(res.user);
       setLoggedIn(true);
       await loadData(res.token);
@@ -606,24 +1398,38 @@ export default function App() {
         setFlyers(fallbackFlyers);
         setNotices(fallbackNotices);
         setCard(fallbackCard);
-        setPushState("Офлајн демо режим");
+        setPushState(t("state_offline_demo"));
         setLoggedIn(true);
         return;
       }
-      setAuthError("Невалидна најава. Пробај повторно.");
+      setAuthError(t("auth_invalid_login"));
     }
   };
 
-  const handleRegister = async (name: string, email: string, password: string) => {
+  const handleRegister = async (name: string, email: string, password: string, loyaltyCardNumber: string) => {
     try {
       setAuthError("");
-      const res = await apiPost<{ token: string; user: User }>(apiBase, "/auth/register", { name, email, password });
+      const res = await apiPost<{ token: string; user: User }>(
+        apiBase,
+        "/auth/register",
+        { name, email, password, loyaltyCardNumber },
+      );
       setAuthToken(res.token);
+      await saveSessionToken(res.token);
       setUser(res.user);
       setLoggedIn(true);
       await loadData(res.token);
-    } catch {
-      setAuthError("Регистрацијата не успеа. Провери email/password.");
+    } catch (error) {
+      const apiError = extractApiErrorMessage(error).toLowerCase();
+      if (apiError.includes("already linked")) {
+        setAuthError(t("auth_card_linked"));
+        return;
+      }
+      if (apiError.includes("invalid loyalty card")) {
+        setAuthError(t("auth_card_invalid"));
+        return;
+      }
+      setAuthError(t("auth_register_failed"));
     }
   };
 
@@ -631,23 +1437,23 @@ export default function App() {
     try {
       setAuthError("");
       if (!apiBase.startsWith("http://") && !apiBase.startsWith("https://")) {
-        setAuthError("Внеси валиден Backend URL (http/https).");
+        setAuthError(t("auth_invalid_backend_url"));
         return;
       }
       const oauthStartUrl =
         `${apiBase}/auth/oauth/${provider}/start?redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}`;
       await Linking.openURL(oauthStartUrl);
     } catch {
-      setAuthError("Не можам да започнам OAuth најава на овој уред.");
+      setAuthError(t("auth_oauth_start_failed"));
     }
   };
 
   const handlePushRegister = async () => {
     try {
-      const token = await registerForPush();
+      const token = await registerForPush(t);
       if (token.startsWith("ExponentPushToken[")) {
         setPushToken(token);
-        setPushState("Push токен генериран");
+        setPushState(t("state_push_token_generated"));
         if (authToken) {
           await apiPost(apiBase, "/push/register", { token }, authToken);
         }
@@ -655,7 +1461,27 @@ export default function App() {
         setPushState(token);
       }
     } catch {
-      setPushState("Грешка при push регистрација.");
+      setPushState(t("state_push_error"));
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    if (!authToken) return;
+    if (!pushToken || !pushToken.startsWith("ExponentPushToken[")) {
+      setPushState(t("state_push_register_first"));
+      return;
+    }
+    try {
+      await apiPost(
+        apiBase,
+        "/push/test",
+        { token: pushToken, title: "Zito aplikacija", body: "Test push notifikacija." },
+        authToken,
+      );
+      await loadData(authToken);
+      setPushState(t("state_push_test_sent"));
+    } catch {
+      setPushState(t("state_push_error"));
     }
   };
 
@@ -663,30 +1489,68 @@ export default function App() {
     if (!authToken) return;
     try {
       await loadData(authToken);
-      setPushState("Освежено");
+      setPushState(t("state_refreshed"));
     } catch {
-      setPushState("Не можам да освежам податоци.");
+      setPushState(t("state_refresh_error"));
     }
   };
 
   const handleLogout = () => {
     setLoggedIn(false);
     setAuthToken("");
+    void clearSessionToken();
     setAuthError("");
     setPushToken("");
-    setPushState("Нерегистрирано");
+    setPushState(t("state_unregistered"));
+    autoPushAttemptedRef.current = false;
     setUser(fallbackUser);
     setFlyers(fallbackFlyers);
     setNotices(fallbackNotices);
     setCard(fallbackCard);
   };
 
+  useEffect(() => {
+    if (!loggedIn || !authToken) return;
+    if (autoPushAttemptedRef.current) return;
+    autoPushAttemptedRef.current = true;
+
+    const autoRegisterPush = async () => {
+      try {
+        const token = await registerForPush(t);
+        if (token.startsWith("ExponentPushToken[")) {
+          setPushToken(token);
+          setPushState(t("state_push_token_generated"));
+          await apiPost(apiBase, "/push/register", { token }, authToken);
+        } else {
+          setPushState(token);
+        }
+      } catch {
+        setPushState(t("state_push_error"));
+      }
+    };
+
+    void autoRegisterPush();
+  }, [loggedIn, authToken, apiBase, t]);
+
   return (
-    <SafeAreaProvider>
+    <I18nContext.Provider value={{ language, setLanguage, t }}>
+    <ThemeContext.Provider value={{ mode: themeMode, palette, toggleTheme }}>
+      <SafeAreaProvider>
       <NavigationContainer>
-        <StatusBar style="dark" />
+        <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {!loggedIn ? (
+        {isAuthBootstrapping ? (
+          <RootStack.Screen name="Login">
+            {() => (
+              <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
+                <View style={styles.loginWrap}>
+                  <Image source={logoImage} style={styles.logoImage} resizeMode="contain" />
+                  <Text style={[styles.screenSubtitle, { color: palette.muted }]}>{t("loading_profile")}</Text>
+                </View>
+              </SafeAreaView>
+            )}
+          </RootStack.Screen>
+        ) : !loggedIn ? (
           <RootStack.Screen name="Login">
             {() => (
               <LoginScreen
@@ -694,6 +1558,8 @@ export default function App() {
                 onRegister={handleRegister}
                 onSocial={handleSocialLogin}
                 error={authError}
+                language={language}
+                onSetLanguage={setLanguage}
               />
             )}
           </RootStack.Screen>
@@ -707,7 +1573,10 @@ export default function App() {
                 card={card}
                 pushToken={pushToken}
                 pushState={pushState}
+                language={language}
+                onSetLanguage={setLanguage}
                 onRegisterPush={handlePushRegister}
+                onSendTestPush={handleSendTestPush}
                 onRefresh={handleRefresh}
                 onLogout={handleLogout}
               />
@@ -717,6 +1586,8 @@ export default function App() {
         </RootStack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
+    </ThemeContext.Provider>
+    </I18nContext.Provider>
   );
 }
 
@@ -741,8 +1612,8 @@ const styles = StyleSheet.create({
   },
   logoImage: {
     alignSelf: "center",
-    width: 170,
-    height: 100,
+    width: 213,
+    height: 125,
     marginBottom: 8,
     zIndex: 2,
     elevation: 2,
@@ -760,6 +1631,49 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     paddingHorizontal: 22,
+    paddingBottom: 56,
+  },
+  scannerWrap: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  scannerCamera: {
+    flex: 1,
+  },
+  scannerOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 18,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    gap: 8,
+  },
+  scannerTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  scannerHint: {
+    color: "#F3F3F3",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  scannerCloseBtn: {
+    marginTop: 8,
+    minWidth: 120,
+    minHeight: 40,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  scannerCloseBtnText: {
+    color: colors.dark,
+    fontSize: 15,
+    fontWeight: "700",
   },
   input: {
     backgroundColor: "#fff",
@@ -777,6 +1691,30 @@ const styles = StyleSheet.create({
   passwordWrap: {
     position: "relative",
     marginBottom: 10,
+  },
+  scanBtn: {
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.green,
+    borderRadius: 10,
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  scanBtnText: {
+    color: colors.green,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  scanStatusText: {
+    color: colors.gray,
+    fontSize: 13,
+    marginTop: -2,
+    marginBottom: 10,
+    textAlign: "center",
   },
   passwordInput: {
     marginBottom: 0,
@@ -845,6 +1783,34 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "700",
   },
+  loginLangRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+  },
+  loginLangDock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  loginLangChip: {
+    minWidth: 40,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loginLangChipActive: {
+    borderColor: colors.green,
+    backgroundColor: "#E8F7EE",
+  },
+  loginLangFlag: {
+    fontSize: 18,
+  },
   banner: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -889,6 +1855,160 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 4,
   },
+  langRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  langChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  langChipActive: {
+    borderColor: colors.green,
+    backgroundColor: "#E8F7EE",
+  },
+  langChipText: {
+    color: colors.gray,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  langChipTextActive: {
+    color: colors.green,
+  },
+  homeFixedWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    gap: 10,
+  },
+  themeToggleBtn: {
+    position: "absolute",
+    right: 16,
+    top: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 5,
+  },
+  homeTopLogo: {
+    alignSelf: "center",
+    width: 120,
+    height: 48,
+    marginBottom: 4,
+  },
+  homeBarcodeWrap: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 6,
+    marginBottom: 2,
+  },
+  homeBarcodeDigits: {
+    textAlign: "center",
+    color: colors.dark,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+  },
+  showcaseSection: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  outlinedTitleWrap: {
+    paddingVertical: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  showcaseHeaderMain: {
+    color: "#10964A",
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 18,
+    textAlign: "center",
+    textShadowColor: "#0A5D30",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 1,
+    includeFontPadding: false,
+  },
+  currentFlyersRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  currentFlyerCard: {
+    borderRadius: 10,
+    padding: 10,
+    justifyContent: "space-between",
+  },
+  mockFlyerTag: {
+    color: "#D8F7E6",
+    fontSize: 11,
+    fontWeight: "800",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  currentFlyerTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 19,
+  },
+  currentFlyerPrice: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  bestDealsSection: {
+    minHeight: 180,
+  },
+  bestDealsScroll: {
+    flex: 1,
+  },
+  bestDealsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 10,
+    rowGap: 8,
+    columnGap: 8,
+  },
+  bestDealCard: {
+    minHeight: 112,
+    borderRadius: 10,
+    padding: 8,
+    justifyContent: "space-between",
+  },
+  bestDealTitle: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 16,
+  },
+  bestDealPrice: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
   flyerCard: {
     flex: 1,
     backgroundColor: colors.card,
@@ -929,7 +2049,7 @@ const styles = StyleSheet.create({
   },
   cardNumber: {
     textAlign: "center",
-    fontSize: 18,
+    fontSize: 16,
     color: colors.gray,
     marginBottom: 12,
   },
@@ -938,19 +2058,31 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
-    paddingVertical: 14,
-    marginBottom: 14,
+    paddingHorizontal: 10,
+    paddingTop: 12,
+    paddingBottom: 10,
+    marginBottom: 2,
   },
-  barcodeText: {
+  barcodeCanvas: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 6,
+    overflow: "hidden",
+    flexDirection: "row",
+    alignItems: "stretch",
+    justifyContent: "center",
+  },
+  barcodeBar: {
+    backgroundColor: "#111111",
+    height: "100%",
+    marginRight: 1,
+  },
+  barcodeDigits: {
     textAlign: "center",
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "900",
     color: colors.dark,
     letterSpacing: 2,
-  },
-  qrWrap: {
-    alignItems: "center",
-    paddingVertical: 8,
+    marginTop: 8,
   },
   notificationCard: {
     backgroundColor: colors.card,
@@ -975,3 +2107,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+
