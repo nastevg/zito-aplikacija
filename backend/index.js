@@ -39,8 +39,9 @@ function requireAuth(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.sub;
     return next();
-  } catch (_error) {
-    return res.status(401).json({ error: "Invalid token" });
+  } catch (error) {
+    const message = error && typeof error.message === "string" ? error.message : "token_verify_failed";
+    return res.status(401).json({ error: "Invalid token", detail: message });
   }
 }
 
