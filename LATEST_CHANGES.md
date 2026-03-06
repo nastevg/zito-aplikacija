@@ -111,3 +111,12 @@
   - TypeScript check passed (`npx tsc --noEmit`).
   - Android release build passed.
   - APK installed on physical device via ADB.
+
+## March 6, 2026 - Locations GPS data fix from Excel C/D
+- Reprocessed location import from Excel source:
+  - Column `C` -> GPS coordinates (`lat`, `lng`)
+  - Column `D` -> settlement/city value for grouping
+- Fixed `market_locations.json` text encoding issues (removed mojibake/corrupted Cyrillic values).
+- Confirmed key entries now carry coordinates in app data (including `Битола`, `Битола 2`, `Битола 3`, `Валандово`).
+- Forced fresh JS rebundle in release build to ensure updated JSON is packaged.
+- Installed updated APK on physical device; user confirmed locations now display correctly.

@@ -703,6 +703,7 @@ const logoImage = require("./assets/images/logo.png");
 const tiltedBadgeImage = require("./assets/images/sekogasverninavas_upscaled-removebg-preview.png");
 const bannerImage = require("./assets/images/home_banner.png");
 const flyersImage = require("./assets/images/flyers_grid.png");
+// Location data refresh marker: 2026-03-06T12:05
 const rawMarketLocations = require("./assets/market_locations.json") as MarketLocation[];
 const marketLocations: MarketLocation[] = rawMarketLocations.map((item) => ({
   name: String(item.name || "").trim(),
