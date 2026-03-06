@@ -389,6 +389,32 @@ app.post("/me/password", requireAuth, async (req, res) => {
   }
 });
 
+app.post("/me/card", requireAuth, async (req, res) => {
+  const cardNumber = normalizeCardNumber(req.body?.cardNumber);
+  if (!isValidCardNumber(cardNumber)) {
+    return res.status(400).json({ error: "Invalid loyalty card number format" });
+  }
+
+  try {
+    const user = await db.getUserById(req.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const existingCardOwner = await db.getUserByCardNumber(cardNumber);
+    if (existingCardOwner && existingCardOwner.id !== user.id) {
+      return res.status(409).json({ error: "Loyalty card is already linked to another profile" });
+    }
+
+    const updated = await db.updateUserCardNumber(user.id, cardNumber);
+    return res.json({
+      cardNumber: updated.cardNumber,
+      barcode: updated.cardNumber,
+      qrValue: `ZITO:${updated.cardNumber}:${updated.id}`,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: String(error) });
+  }
+});
+
 app.get("/loyalty/card", requireAuth, (req, res) => {
   db.getUserById(req.userId).then((user) => {
     if (!user) return res.status(404).json({ error: "User not found" });

@@ -54,3 +54,60 @@
   - `shouldPlaySound` set to `true` in notification handler.
   - default Android notification channel now explicitly sets `sound: "default"` and vibration pattern.
 - Rebuilt and installed updated Android release APK on connected device; push test confirmed working with sound.
+
+## March 5, 2026 - Home layout fixes (flyers and best deals)
+- Fixed `NAJDOBRI AKCII` grid to render exactly 3 cards per row on all screen widths.
+  - Switched from pixel-based card width calculation to fixed percentage layout (`31.8%` + `space-between`).
+  - Kept square card ratio with `aspectRatio: 1`.
+- Kept `TEKOVNI LETOCI` cards visually larger inside the same section height (no section expansion).
+- Confirmed separation of mock sources:
+  - `assets/images/letoci/*` used only for current flyers.
+  - `assets/images/akcii/*` used only for best deals.
+- Final validation:
+  - Built Android release APK successfully (`app:assembleRelease`).
+  - Installed on physical device via ADB.
+  - User-confirmed UI result is now correct.
+
+## March 6, 2026 - Shopping List module added
+- Added a new bottom tab: `Листа` / `Shopping`.
+- Implemented full shopping list screen:
+  - add item (`name`, `quantity`, `note`)
+  - mark item as purchased (checkbox toggle)
+  - remove single item
+  - clear all purchased items
+- Added quick shortcuts to open shopping list from:
+  - Home screen
+  - Flyers screen
+  - Profile screen
+- Added i18n keys for MK/EN/SQ/TR for the whole shopping list flow.
+- Added local persistence with AsyncStorage (`zito.shopping.items`) so list stays saved between app restarts.
+- TypeScript validation: `npx tsc --noEmit` passed.
+
+## March 6, 2026 - Production strategy notes (discussion log)
+- Agreed strategic direction for Play Store production:
+  - Use managed cloud stack instead of self-hosted server.
+  - Keep architecture API-first (mobile app -> backend API -> DB/storage).
+- Confirmed current app architecture is cloud-ready and can continue with managed hosting.
+- Ownership transfer feasibility confirmed:
+  - App can be moved to a new owner cloud account (Render/Firebase/etc.).
+  - Requires transfer/rotation of repo access, secrets, DB/storage, and credentials.
+  - Special care required for Play Console ownership/signing continuity.
+- Admin panel clarification:
+  - No automatic custom admin panel is provided by cloud.
+  - Need to build custom admin panel, or use temporary ready-made admin tools first.
+
+## March 6, 2026 - Card screen barcode scan (camera) + backend card update
+- Added barcode scanning to `Картичка` screen using phone camera (`expo-camera` flow).
+  - New scan action on card screen: "Скенирај баркод со камера".
+  - Scanner supports: `ean13`, `ean8`, `code128`, `code39`, `upc_a`, `upc_e`, `itf14`.
+- Added backend endpoint for card update:
+  - `POST /me/card` (auth required)
+  - Validates card number format and duplicate ownership.
+  - Returns refreshed card payload (`cardNumber`, `barcode`, `qrValue`).
+- Added DB update methods for both SQLite and Postgres stores:
+  - `updateUserCardNumber(id, cardNumber)`
+- Added localized status messages (MK/EN/SQ/TR) for card update result.
+- Validation and delivery:
+  - TypeScript check passed (`npx tsc --noEmit`).
+  - Android release build passed.
+  - APK installed on physical device via ADB.

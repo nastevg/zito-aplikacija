@@ -35,6 +35,7 @@ type TabParamList = {
   Home: undefined;
   Flyers: undefined;
   Card: undefined;
+  Shopping: undefined;
   Locations: undefined;
   Notifications: undefined;
   Profile: undefined;
@@ -76,6 +77,15 @@ type MarketLocation = {
   lng: number | null;
 };
 
+type ShoppingItem = {
+  id: string;
+  name: string;
+  quantity: string;
+  note: string;
+  done: boolean;
+  createdAt: number;
+};
+
 type ThemeMode = "light" | "dark";
 type LanguageCode = "mk" | "en" | "sq" | "tr";
 type ThemePalette = {
@@ -95,6 +105,7 @@ const FALLBACK_API_BASE = "https://zito-backend.onrender.com";
 const SESSION_TOKEN_KEY = "zito.session.token";
 const THEME_MODE_KEY = "zito.theme.mode";
 const LANGUAGE_CODE_KEY = "zito.language.code";
+const SHOPPING_LIST_KEY = "zito.shopping.items";
 const configuredApiBase = String(Constants.expoConfig?.extra?.apiBase || "").trim();
 const isLocalApiBase = /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?(\/|$)/i.test(configuredApiBase);
 const DEFAULT_API_BASE = !configuredApiBase || isLocalApiBase ? FALLBACK_API_BASE : configuredApiBase;
@@ -138,36 +149,32 @@ type BestDealMock = {
   id: string;
   title: string;
   price: string;
-  color: string;
+  image: number;
 };
 
 const currentFlyersMock: CurrentFlyerMock[] = [
-  { id: "c1", title: "Тест леток 1", price: "", image: require("./assets/images/OIP.webp") },
-  { id: "c2", title: "Тест леток 2", price: "", image: require("./assets/images/OIP (1).webp") },
-  { id: "c3", title: "Тест леток 3", price: "", image: require("./assets/images/OIP (2).webp") },
-  { id: "c4", title: "Тест леток 4", price: "", image: require("./assets/images/OIP (3).webp") },
-  { id: "c5", title: "Тест леток 5", price: "", image: require("./assets/images/OIP (4).webp") },
-  { id: "c6", title: "Тест леток 6", price: "", image: require("./assets/images/tip-4-566x800.png") },
+  { id: "c1", title: "Тест леток 1", price: "", image: require("./assets/images/letoci/OIP.webp") },
+  { id: "c2", title: "Тест леток 2", price: "", image: require("./assets/images/letoci/OIP (1).webp") },
+  { id: "c3", title: "Тест леток 3", price: "", image: require("./assets/images/letoci/OIP (2).webp") },
+  { id: "c4", title: "Тест леток 4", price: "", image: require("./assets/images/letoci/OIP (3).webp") },
+  { id: "c5", title: "Тест леток 5", price: "", image: require("./assets/images/letoci/OIP (4).webp") },
+  { id: "c6", title: "Тест леток 6", price: "", image: require("./assets/images/letoci/tip-4-566x800.png") },
 ];
 
-const bestDealsMock: BestDealMock[] = [
-  { id: "b1", title: "Кафе", price: "79 ден.", color: "#0F8A43" },
-  { id: "b2", title: "Сок", price: "39 ден.", color: "#0D7B3B" },
-  { id: "b3", title: "Чоколадо", price: "59 ден.", color: "#0C6A34" },
-  { id: "b4", title: "Паста", price: "45 ден.", color: "#0F8A43" },
-  { id: "b5", title: "Сирење", price: "129 ден.", color: "#0D7B3B" },
-  { id: "b6", title: "Колбас", price: "149 ден.", color: "#0C6A34" },
-  { id: "b7", title: "Кекс", price: "69 ден.", color: "#0F8A43" },
-  { id: "b8", title: "Млеко", price: "62 ден.", color: "#0D7B3B" },
-  { id: "b9", title: "Масло", price: "89 ден.", color: "#0C6A34" },
-  { id: "b10", title: "Ориз", price: "74 ден.", color: "#0F8A43" },
-  { id: "b11", title: "Сол", price: "29 ден.", color: "#0D7B3B" },
-  { id: "b12", title: "Снек", price: "49 ден.", color: "#0C6A34" },
-  { id: "b13", title: "Чај", price: "55 ден.", color: "#0F8A43" },
-  { id: "b14", title: "Путер", price: "119 ден.", color: "#0D7B3B" },
-  { id: "b15", title: "Јогурт", price: "44 ден.", color: "#0C6A34" },
-  { id: "b16", title: "Бисквити", price: "63 ден.", color: "#0F8A43" },
-];
+const akcijaImages = [
+  require("./assets/images/akcii/OIP.webp"),
+  require("./assets/images/akcii/OIP (1).webp"),
+  require("./assets/images/akcii/OIP (2).webp"),
+  require("./assets/images/akcii/OIP (3).webp"),
+  require("./assets/images/akcii/OIP (5).webp"),
+] as const;
+
+const bestDealsMock: BestDealMock[] = Array.from({ length: 16 }, (_, index) => ({
+  id: `b${index + 1}`,
+  title: `Тест акција ${index + 1}`,
+  price: "",
+  image: akcijaImages[index % akcijaImages.length],
+}));
 
 const colors = {
   bg: "#E9E9E9",
@@ -234,6 +241,10 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     camera_permission_error: "Нема дозвола за камера. Овозможи Camera permission во Settings.",
     invalid_barcode: "Невалиден баркод. Пробај повторно.",
     barcode_success: "Баркод успешно скениран.",
+    state_card_saved: "Картичката е ажурирана.",
+    state_card_invalid: "Невалиден број на картичка.",
+    state_card_linked: "Оваа картичка е веќе поврзана со друг профил.",
+    state_card_error: "Грешка при ажурирање на картичка.",
     home_current_flyers: "ТЕКОВНИ ЛЕТОЦИ",
     home_best_deals: "НАЈДОБРИ АКЦИИ",
     points: "Поени",
@@ -244,6 +255,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_home: "Почетна",
     tab_flyers: "Летоци",
     tab_card: "Картичка",
+    tab_shopping: "Листа",
     tab_locations: "Локации",
     tab_notifications: "Известувања",
     tab_profile: "Профил",
@@ -251,6 +263,8 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     screen_flyers_subtitle: "Истакнати производи и топ акции",
     screen_card_title: "Дигитална картичка",
     screen_card_subtitle: "Жито Клуб",
+    screen_shopping_title: "Шопинг листа",
+    screen_shopping_subtitle: "Организирај производи пред купување",
     screen_locations_title: "Локации",
     screen_locations_subtitle: "Интерактивни GPS локации по населено место",
     locations_all: "Сите",
@@ -274,6 +288,13 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     register_push: "Регистрирај push",
     send_test_push: "Тест push нотификација",
     refresh_data: "Освежи податоци",
+    open_shopping_list: "Отвори шопинг листа",
+    shopping_item_placeholder: "Производ",
+    shopping_qty_placeholder: "Кол.",
+    shopping_note_placeholder: "Белешка (опционално)",
+    shopping_add_btn: "Додај",
+    shopping_clear_checked: "Исчисти купено",
+    shopping_empty: "Нема производи. Додај прв производ.",
     open_in_maps: "Отвори во мапа",
     no_coordinates: "Нема GPS координати",
     coordinates_label: "Координати",
@@ -334,6 +355,10 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     camera_permission_error: "No camera permission. Enable Camera permission in Settings.",
     invalid_barcode: "Invalid barcode. Try again.",
     barcode_success: "Barcode scanned successfully.",
+    state_card_saved: "Card updated successfully.",
+    state_card_invalid: "Invalid loyalty card number.",
+    state_card_linked: "This card is already linked to another profile.",
+    state_card_error: "Could not update card.",
     home_current_flyers: "CURRENT FLYERS",
     home_best_deals: "BEST DEALS",
     points: "Points",
@@ -344,6 +369,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_home: "Home",
     tab_flyers: "Flyers",
     tab_card: "Card",
+    tab_shopping: "List",
     tab_locations: "Locations",
     tab_notifications: "Alerts",
     tab_profile: "Profile",
@@ -351,6 +377,8 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     screen_flyers_subtitle: "Featured products and top deals",
     screen_card_title: "Digital Card",
     screen_card_subtitle: "Zito Club",
+    screen_shopping_title: "Shopping List",
+    screen_shopping_subtitle: "Organize products before shopping",
     screen_locations_title: "Locations",
     screen_locations_subtitle: "Interactive GPS locations by settlement",
     locations_all: "All",
@@ -374,6 +402,13 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     register_push: "Register push",
     send_test_push: "Send test push",
     refresh_data: "Refresh data",
+    open_shopping_list: "Open shopping list",
+    shopping_item_placeholder: "Product",
+    shopping_qty_placeholder: "Qty",
+    shopping_note_placeholder: "Note (optional)",
+    shopping_add_btn: "Add",
+    shopping_clear_checked: "Clear purchased",
+    shopping_empty: "No products yet. Add your first product.",
     open_in_maps: "Open in Maps",
     no_coordinates: "No GPS coordinates",
     coordinates_label: "Coordinates",
@@ -434,6 +469,10 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     camera_permission_error: "Nuk ka leje për kamerën. Aktivizo Camera permission në Settings.",
     invalid_barcode: "Barkod i pavlefshëm. Provo përsëri.",
     barcode_success: "Barkodi u skanua me sukses.",
+    state_card_saved: "Kartela u perditesua.",
+    state_card_invalid: "Numer i pavlefshem i karteles.",
+    state_card_linked: "Kjo kartele eshte tashme e lidhur me nje profil tjeter.",
+    state_card_error: "Nuk mund te perditesoj kartelen.",
     home_current_flyers: "LETËR NJOFTIME AKTIVE",
     home_best_deals: "AKSIONET MË TË MIRA",
     points: "Pikë",
@@ -444,6 +483,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_home: "Kreu",
     tab_flyers: "Fletë",
     tab_card: "Kartela",
+    tab_shopping: "Lista",
     tab_locations: "Lokacione",
     tab_notifications: "Njoftime",
     tab_profile: "Profili",
@@ -451,6 +491,8 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     screen_flyers_subtitle: "Produkte të theksuara dhe oferta kryesore",
     screen_card_title: "Kartelë Digjitale",
     screen_card_subtitle: "Zito Klub",
+    screen_shopping_title: "Lista e blerjes",
+    screen_shopping_subtitle: "Organizo produktet para blerjes",
     screen_locations_title: "Lokacione",
     screen_locations_subtitle: "Lokacione interaktive GPS sipas vendbanimit",
     locations_all: "Te gjitha",
@@ -474,6 +516,13 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     register_push: "Regjistro push",
     send_test_push: "Dergo push test",
     refresh_data: "Rifresko të dhënat",
+    open_shopping_list: "Hap listen e blerjes",
+    shopping_item_placeholder: "Produkti",
+    shopping_qty_placeholder: "Sasia",
+    shopping_note_placeholder: "Shenim (opsionale)",
+    shopping_add_btn: "Shto",
+    shopping_clear_checked: "Pastro te blerat",
+    shopping_empty: "Nuk ka produkte. Shto produktin e pare.",
     open_in_maps: "Hap në Maps",
     no_coordinates: "Nuk ka koordinata GPS",
     coordinates_label: "Koordinata",
@@ -534,6 +583,10 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     camera_permission_error: "Kamera izni yok. Ayarlardan Camera permission etkinlestir.",
     invalid_barcode: "Gecersiz barkod. Tekrar dene.",
     barcode_success: "Barkod basariyla tarandi.",
+    state_card_saved: "Kart basariyla guncellendi.",
+    state_card_invalid: "Gecersiz sadakat karti numarasi.",
+    state_card_linked: "Bu kart baska bir profile bagli.",
+    state_card_error: "Kart guncellenemedi.",
     home_current_flyers: "GUNCEL BROSURLER",
     home_best_deals: "EN IYI AKSIYONLAR",
     points: "Puanlar",
@@ -544,6 +597,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_home: "Ana Sayfa",
     tab_flyers: "Brosurler",
     tab_card: "Kart",
+    tab_shopping: "Liste",
     tab_locations: "Konumlar",
     tab_notifications: "Bildirimler",
     tab_profile: "Profil",
@@ -551,6 +605,8 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     screen_flyers_subtitle: "One cikan urunler ve en iyi aksiyonlar",
     screen_card_title: "Dijital Kart",
     screen_card_subtitle: "Zito Kulup",
+    screen_shopping_title: "Alisveris listesi",
+    screen_shopping_subtitle: "Alisveris oncesi urunleri duzenle",
     screen_locations_title: "Konumlar",
     screen_locations_subtitle: "Yerlesim yerine gore etkilesimli GPS konumlari",
     locations_all: "Tum",
@@ -574,6 +630,13 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     register_push: "Push kaydet",
     send_test_push: "Test push gonder",
     refresh_data: "Veriyi yenile",
+    open_shopping_list: "Alisveris listesini ac",
+    shopping_item_placeholder: "Urun",
+    shopping_qty_placeholder: "Adet",
+    shopping_note_placeholder: "Not (opsiyonel)",
+    shopping_add_btn: "Ekle",
+    shopping_clear_checked: "Alinanlari temizle",
+    shopping_empty: "Henuz urun yok. Ilk urunu ekle.",
     open_in_maps: "Haritada ac",
     no_coordinates: "GPS koordinati yok",
     coordinates_label: "Koordinatlar",
@@ -982,15 +1045,14 @@ function BarcodeStrip({ value, height = 64 }: { value: string; height?: number }
   );
 }
 
-function HomeScreen({ user, card }: { user: User; card: CardData }) {
+function HomeScreen({ user, card, onOpenShoppingList }: { user: User; card: CardData; onOpenShoppingList: () => void }) {
   const { mode, palette, toggleTheme } = useAppTheme();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
   const showcaseSectionHeight = Math.max(236, Math.min(302, Math.floor(windowHeight * 0.325)));
-  const currentCardHeight = Math.max(128, showcaseSectionHeight - 104);
-  const currentCardWidth = Math.max(96, Math.min(132, Math.round(currentCardHeight * 0.62)));
-  const bestDealCardWidth = Math.floor((windowWidth - 32 - 20 - 24) / 3);
+  const currentCardHeight = Math.max(138, showcaseSectionHeight - 92);
+  const currentCardWidth = Math.max(112, Math.min(164, Math.round(currentCardHeight * 0.78)));
   const currentFlyersGap = 10;
   const currentFlyersItemSize = currentCardWidth + currentFlyersGap;
   const baseFlyersCount = currentFlyersMock.length;
@@ -1056,9 +1118,7 @@ function HomeScreen({ user, card }: { user: User; card: CardData }) {
               setTimeout(() => flyersListRef.current?.scrollToIndex({ index: info.index, animated: false }), 50);
             }}
             renderItem={({ item }) => (
-              <View
-                style={[styles.currentFlyerCard, { backgroundColor: palette.card, width: currentCardWidth, minHeight: currentCardHeight }]}
-              >
+              <View style={[styles.currentFlyerCard, { backgroundColor: palette.card, width: currentCardWidth, minHeight: currentCardHeight }]}>
                 <Image source={item.image} style={styles.currentFlyerImage} resizeMode="cover" />
               </View>
             )}
@@ -1074,10 +1134,11 @@ function HomeScreen({ user, card }: { user: User; card: CardData }) {
             nestedScrollEnabled
           >
             {bestDealsMock.map((item) => (
-              <View key={item.id} style={[styles.bestDealCard, { backgroundColor: item.color, width: bestDealCardWidth }]}> 
-                <Text style={styles.mockFlyerTag}>{t("tag_action")}</Text>
-                <Text style={styles.bestDealTitle}>{item.title}</Text>
-                <Text style={styles.bestDealPrice}>{item.price}</Text>
+              <View
+                key={item.id}
+                style={[styles.bestDealCard, { backgroundColor: palette.card }]}
+              >
+                <Image source={item.image} style={styles.bestDealImage} resizeMode="cover" />
               </View>
             ))}
           </ScrollView>
@@ -1087,6 +1148,10 @@ function HomeScreen({ user, card }: { user: User; card: CardData }) {
           <InfoCard title={t("points")} value={`${user.points}`} />
           <InfoCard title={t("coupons")} value={`${user.coupons} ${t("active_suffix")}`} />
         </View>
+        <Pressable style={[styles.quickListBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={onOpenShoppingList}>
+          <Ionicons name="basket-outline" size={18} color={colors.green} />
+          <Text style={styles.quickListBtnText}>{t("open_shopping_list")}</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -1111,7 +1176,7 @@ function OutlinedHeader({ text }: { text: string }) {
 function modeShadowColor(green: string) {
   return green === LIGHT_THEME.green ? "#0A5D30" : "#1E6A3A";
 }
-function FlyersScreen({ flyers }: { flyers: Flyer[] }) {
+function FlyersScreen({ flyers, onOpenShoppingList }: { flyers: Flyer[]; onOpenShoppingList: () => void }) {
   const { t } = useI18n();
   const { palette } = useAppTheme();
   return (
@@ -1121,6 +1186,10 @@ function FlyersScreen({ flyers }: { flyers: Flyer[] }) {
       titleStyle={[styles.flyersScreenTitle, { color: palette.green, textShadowColor: modeShadowColor(palette.green) }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
+      <Pressable style={[styles.quickListBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={onOpenShoppingList}>
+        <Ionicons name="basket-outline" size={18} color={colors.green} />
+        <Text style={styles.quickListBtnText}>{t("open_shopping_list")}</Text>
+      </Pressable>
       <FlatList
         data={flyers}
         keyExtractor={(item) => item.id}
@@ -1139,9 +1208,68 @@ function FlyersScreen({ flyers }: { flyers: Flyer[] }) {
   );
 }
 
-function CardScreen({ card }: { card: CardData }) {
+function CardScreen({ card, onScanCard }: { card: CardData; onScanCard: (cardNumber: string) => Promise<string> }) {
   const { palette } = useAppTheme();
   const { t } = useI18n();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanLocked, setScanLocked] = useState(false);
+  const [scanStatus, setScanStatus] = useState("");
+
+  const handleOpenScanner = async () => {
+    setScanStatus("");
+    setScanLocked(false);
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) {
+        setScanStatus(t("camera_permission_error"));
+        return;
+      }
+    }
+    setIsScannerOpen(true);
+  };
+
+  const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
+    if (scanLocked) return;
+    setScanLocked(true);
+    const digits = String(data || "").replace(/\D/g, "");
+    if (!digits) {
+      setScanStatus(t("invalid_barcode"));
+      setScanLocked(false);
+      return;
+    }
+
+    setIsScannerOpen(false);
+    const scannedCardNumber = digits.slice(0, 16);
+    const result = await onScanCard(scannedCardNumber);
+    setScanStatus(result);
+    setScanLocked(false);
+  };
+
+  if (isScannerOpen) {
+    return (
+      <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
+        <View style={styles.scannerWrap}>
+          <CameraView
+            style={styles.scannerCamera}
+            facing="back"
+            barcodeScannerSettings={{
+              barcodeTypes: ["ean13", "ean8", "code128", "code39", "upc_a", "upc_e", "itf14"],
+            }}
+            onBarcodeScanned={scanLocked ? undefined : handleBarcodeScanned}
+          />
+          <View style={styles.scannerOverlay}>
+            <Text style={styles.scannerTitle}>{t("scan_barcode_title")}</Text>
+            <Text style={styles.scannerHint}>{t("scan_barcode_hint")}</Text>
+            <Pressable style={styles.scannerCloseBtn} onPress={() => setIsScannerOpen(false)}>
+              <Text style={styles.scannerCloseBtnText}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <ScreenWrap
       title={t("screen_card_title")}
@@ -1149,6 +1277,11 @@ function CardScreen({ card }: { card: CardData }) {
       titleStyle={[styles.flyersScreenTitle, { color: palette.green, textShadowColor: modeShadowColor(palette.green) }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
+      <Pressable style={[styles.scanBtn, { backgroundColor: palette.card, borderColor: palette.green }]} onPress={() => void handleOpenScanner()}>
+        <Ionicons name="scan-outline" size={18} color={colors.green} />
+        <Text style={styles.scanBtnText}>{t("scan_barcode_camera")}</Text>
+      </Pressable>
+      {scanStatus ? <Text style={[styles.scanStatusText, { color: palette.muted }]}>{scanStatus}</Text> : null}
       <View style={[styles.cardBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Image source={logoImage} style={styles.cardLogo} resizeMode="contain" />
         <Text style={[styles.cardNumber, { color: palette.muted }]}>{card.cardNumber}</Text>
@@ -1157,6 +1290,124 @@ function CardScreen({ card }: { card: CardData }) {
           <Text style={[styles.barcodeDigits, { color: palette.text }]}>{card.barcode}</Text>
         </View>
       </View>
+    </ScreenWrap>
+  );
+}
+
+function ShoppingListScreen({
+  items,
+  onAddItem,
+  onToggleItem,
+  onRemoveItem,
+  onClearPurchased,
+}: {
+  items: ShoppingItem[];
+  onAddItem: (name: string, quantity: string, note: string) => void;
+  onToggleItem: (id: string) => void;
+  onRemoveItem: (id: string) => void;
+  onClearPurchased: () => void;
+}) {
+  const { palette } = useAppTheme();
+  const { t } = useI18n();
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [note, setNote] = useState("");
+
+  const sortedItems = useMemo(
+    () => [...items].sort((a, b) => Number(a.done) - Number(b.done) || a.createdAt - b.createdAt),
+    [items],
+  );
+
+  const submit = () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+    onAddItem(trimmedName, quantity.trim(), note.trim());
+    setName("");
+    setQuantity("");
+    setNote("");
+  };
+
+  return (
+    <ScreenWrap
+      title={t("screen_shopping_title")}
+      subtitle={t("screen_shopping_subtitle")}
+      titleStyle={[styles.flyersScreenTitle, { color: palette.green, textShadowColor: modeShadowColor(palette.green) }]}
+      subtitleStyle={styles.flyersScreenSubtitle}
+    >
+      <View style={[styles.shoppingForm, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder={t("shopping_item_placeholder")}
+          placeholderTextColor="#9A9A9A"
+          style={[styles.input, styles.shoppingInput, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
+        />
+        <TextInput
+          value={quantity}
+          onChangeText={setQuantity}
+          placeholder={t("shopping_qty_placeholder")}
+          placeholderTextColor="#9A9A9A"
+          style={[styles.input, styles.shoppingQtyInput, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
+        />
+        <TextInput
+          value={note}
+          onChangeText={setNote}
+          placeholder={t("shopping_note_placeholder")}
+          placeholderTextColor="#9A9A9A"
+          style={[styles.input, styles.shoppingInput, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
+        />
+        <Pressable style={[styles.loginBtn, { marginTop: 0 }]} onPress={submit}>
+          <Ionicons name="add-outline" size={20} color={colors.green} />
+          <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("shopping_add_btn")}</Text>
+        </Pressable>
+        <Pressable style={[styles.loginBtn, styles.shoppingClearBtn, { marginTop: 8 }]} onPress={onClearPurchased}>
+          <Ionicons name="trash-outline" size={18} color={colors.green} />
+          <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("shopping_clear_checked")}</Text>
+        </Pressable>
+      </View>
+
+      {sortedItems.length === 0 ? (
+        <View style={[styles.shoppingEmptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.shoppingEmptyText, { color: palette.muted }]}>{t("shopping_empty")}</Text>
+        </View>
+      ) : (
+        sortedItems.map((item) => (
+          <View
+            key={item.id}
+            style={[
+              styles.shoppingItemCard,
+              {
+                backgroundColor: palette.card,
+                borderColor: palette.border,
+                opacity: item.done ? 0.72 : 1,
+              },
+            ]}
+          >
+            <Pressable style={styles.shoppingToggleWrap} onPress={() => onToggleItem(item.id)}>
+              <Ionicons
+                name={item.done ? "checkbox-outline" : "square-outline"}
+                size={22}
+                color={item.done ? colors.green : palette.muted}
+              />
+            </Pressable>
+            <View style={styles.shoppingTextWrap}>
+              <Text
+                style={[
+                  styles.shoppingItemName,
+                  { color: palette.text, textDecorationLine: item.done ? "line-through" : "none" },
+                ]}
+              >
+                {item.name}
+              </Text>
+              {!!item.quantity && <Text style={[styles.shoppingMeta, { color: palette.muted }]}>{item.quantity}</Text>}
+              {!!item.note && <Text style={[styles.shoppingMeta, { color: palette.muted }]}>{item.note}</Text>}
+            </View>
+            <Pressable style={styles.shoppingDeleteBtn} onPress={() => onRemoveItem(item.id)}>
+              <Ionicons name="close-outline" size={22} color={palette.muted} />
+            </Pressable>
+          </View>
+        ))
+      )}
     </ScreenWrap>
   );
 }
@@ -1294,6 +1545,7 @@ function ProfileScreen({
   onRegisterPush,
   onSendTestPush,
   onRefresh,
+  onOpenShoppingList,
   onLogout,
 }: {
   user: User;
@@ -1307,6 +1559,7 @@ function ProfileScreen({
   onRegisterPush: () => void;
   onSendTestPush: () => void;
   onRefresh: () => void;
+  onOpenShoppingList: () => void;
   onLogout: () => void;
 }) {
   const { t } = useI18n();
@@ -1417,6 +1670,10 @@ function ProfileScreen({
           <Text style={[styles.langChipText, language === "tr" && styles.langChipTextActive]}>{t("lang_tr")}</Text>
         </Pressable>
       </View>
+      <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onOpenShoppingList}>
+        <Ionicons name="basket-outline" size={20} color={colors.green} />
+        <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("open_shopping_list")}</Text>
+      </Pressable>
       <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onRegisterPush}>
         <Ionicons name="notifications-outline" size={20} color={colors.green} />
         <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("register_push")}</Text>
@@ -1483,11 +1740,17 @@ function MainTabs({
   flyers,
   notices,
   card,
+  shoppingItems,
   pushToken,
   pushState,
   profileState,
   language,
+  onAddShoppingItem,
+  onToggleShoppingItem,
+  onRemoveShoppingItem,
+  onClearPurchasedShoppingItems,
   onSetLanguage,
+  onScanCard,
   onUpdateProfile,
   onChangePassword,
   onRegisterPush,
@@ -1499,11 +1762,17 @@ function MainTabs({
   flyers: Flyer[];
   notices: Notice[];
   card: CardData;
+  shoppingItems: ShoppingItem[];
   pushToken: string;
   pushState: string;
   profileState: string;
   language: LanguageCode;
+  onAddShoppingItem: (name: string, quantity: string, note: string) => void;
+  onToggleShoppingItem: (id: string) => void;
+  onRemoveShoppingItem: (id: string) => void;
+  onClearPurchasedShoppingItems: () => void;
   onSetLanguage: (language: LanguageCode) => void;
+  onScanCard: (cardNumber: string) => Promise<string>;
   onUpdateProfile: (name: string, email: string) => void;
   onChangePassword: (currentPassword: string, newPassword: string, confirmPassword: string) => void;
   onRegisterPush: () => void;
@@ -1541,6 +1810,7 @@ function MainTabs({
             Home: "home",
             Flyers: "pricetags",
             Card: "card",
+            Shopping: "basket",
             Locations: "location",
             Notifications: "notifications",
             Profile: "person",
@@ -1550,13 +1820,24 @@ function MainTabs({
       })}
     >
       <Tab.Screen name="Home" options={{ title: t("tab_home") }}>
-        {() => <HomeScreen user={user} card={card} />}
+        {({ navigation }) => <HomeScreen user={user} card={card} onOpenShoppingList={() => navigation.navigate("Shopping")} />}
       </Tab.Screen>
       <Tab.Screen name="Flyers" options={{ title: t("tab_flyers") }}>
-        {() => <FlyersScreen flyers={flyers} />}
+        {({ navigation }) => <FlyersScreen flyers={flyers} onOpenShoppingList={() => navigation.navigate("Shopping")} />}
       </Tab.Screen>
       <Tab.Screen name="Card" options={{ title: t("tab_card") }}>
-        {() => <CardScreen card={card} />}
+        {() => <CardScreen card={card} onScanCard={onScanCard} />}
+      </Tab.Screen>
+      <Tab.Screen name="Shopping" options={{ title: t("tab_shopping") }}>
+        {() => (
+          <ShoppingListScreen
+            items={shoppingItems}
+            onAddItem={onAddShoppingItem}
+            onToggleItem={onToggleShoppingItem}
+            onRemoveItem={onRemoveShoppingItem}
+            onClearPurchased={onClearPurchasedShoppingItems}
+          />
+        )}
       </Tab.Screen>
       <Tab.Screen name="Locations" options={{ title: t("tab_locations") }}>
         {() => <LocationsScreen />}
@@ -1565,7 +1846,7 @@ function MainTabs({
         {() => <NotificationsScreen notices={notices} />}
       </Tab.Screen>
       <Tab.Screen name="Profile" options={{ title: t("tab_profile") }}>
-        {() => (
+        {({ navigation }) => (
           <ProfileScreen
             user={user}
             pushToken={pushToken}
@@ -1578,6 +1859,7 @@ function MainTabs({
             onRegisterPush={onRegisterPush}
             onSendTestPush={onSendTestPush}
             onRefresh={onRefresh}
+            onOpenShoppingList={() => navigation.navigate("Shopping")}
             onLogout={onLogout}
           />
         )}
@@ -1641,10 +1923,29 @@ export default function App() {
   const [flyers, setFlyers] = useState<Flyer[]>(fallbackFlyers);
   const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
   const [card, setCard] = useState<CardData>(fallbackCard);
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [pushToken, setPushToken] = useState("");
   const [pushState, setPushState] = useState(t("state_unregistered"));
   const [profileState, setProfileState] = useState("-");
   const autoPushAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    const loadShoppingItems = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(SHOPPING_LIST_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as ShoppingItem[];
+        if (Array.isArray(parsed)) setShoppingItems(parsed);
+      } catch {
+        // Ignore invalid cached shopping list.
+      }
+    };
+    void loadShoppingItems();
+  }, []);
+
+  useEffect(() => {
+    void AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(shoppingItems));
+  }, [shoppingItems]);
 
   const saveSessionToken = async (token: string) => {
     if (!token) return;
@@ -1938,6 +2239,21 @@ export default function App() {
     }
   };
 
+  const handleScanCard = async (cardNumber: string): Promise<string> => {
+    if (!authToken) return t("state_card_error");
+    try {
+      const updated = await apiPost<CardData>(apiBase, "/me/card", { cardNumber }, authToken);
+      setCard(updated);
+      setUser((prev) => ({ ...prev, cardNumber: updated.cardNumber }));
+      return t("state_card_saved");
+    } catch (error) {
+      const apiError = extractApiErrorMessage(error).toLowerCase();
+      if (apiError.includes("already linked")) return t("state_card_linked");
+      if (apiError.includes("invalid loyalty card")) return t("state_card_invalid");
+      return t("state_card_error");
+    }
+  };
+
   const handleUpdateProfile = async (name: string, email: string) => {
     if (!authToken) return;
     try {
@@ -1990,6 +2306,34 @@ export default function App() {
     setFlyers(fallbackFlyers);
     setNotices(fallbackNotices);
     setCard(fallbackCard);
+  };
+
+  const handleAddShoppingItem = (name: string, quantity: string, note: string) => {
+    setShoppingItems((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name,
+        quantity,
+        note,
+        done: false,
+        createdAt: Date.now(),
+      },
+    ]);
+  };
+
+  const handleToggleShoppingItem = (id: string) => {
+    setShoppingItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)),
+    );
+  };
+
+  const handleRemoveShoppingItem = (id: string) => {
+    setShoppingItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleClearPurchasedShoppingItems = () => {
+    setShoppingItems((prev) => prev.filter((item) => !item.done));
   };
 
   useEffect(() => {
@@ -2063,11 +2407,17 @@ export default function App() {
                 flyers={flyers}
                 notices={notices}
                 card={card}
+                shoppingItems={shoppingItems}
                 pushToken={pushToken}
                 pushState={pushState}
                 profileState={profileState}
                 language={language}
+                onAddShoppingItem={handleAddShoppingItem}
+                onToggleShoppingItem={handleToggleShoppingItem}
+                onRemoveShoppingItem={handleRemoveShoppingItem}
+                onClearPurchasedShoppingItems={handleClearPurchasedShoppingItems}
                 onSetLanguage={setLanguage}
+                onScanCard={handleScanCard}
                 onUpdateProfile={handleUpdateProfile}
                 onChangePassword={handleChangePassword}
                 onRegisterPush={handlePushRegister}
@@ -2333,6 +2683,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
+  quickListBtn: {
+    backgroundColor: "#F8F8F8",
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  quickListBtnText: {
+    color: colors.green,
+    fontSize: 14,
+    fontWeight: "800",
+  },
   infoCard: {
     flex: 1,
     backgroundColor: colors.card,
@@ -2449,18 +2817,21 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   currentFlyersRow: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     gap: 10,
   },
   currentFlyerCard: {
     borderRadius: 10,
-    padding: 0,
+    padding: 2,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   currentFlyerImage: {
     width: "100%",
     height: "100%",
+    alignSelf: "center",
   },
   mockFlyerTag: {
     color: "#D8F7E6",
@@ -2492,15 +2863,25 @@ const styles = StyleSheet.create({
   bestDealsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    padding: 10,
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     rowGap: 8,
-    columnGap: 8,
   },
   bestDealCard: {
-    minHeight: 112,
+    width: "31.8%",
+    aspectRatio: 1,
     borderRadius: 10,
-    padding: 8,
-    justifyContent: "space-between",
+    padding: 0,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  bestDealImage: {
+    width: "100%",
+    height: "100%",
+    alignSelf: "center",
   },
   bestDealTitle: {
     color: "#FFFFFF",
@@ -2539,6 +2920,60 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 4,
     textAlign: "center",
+  },
+  shoppingForm: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  shoppingInput: {
+    marginBottom: 8,
+  },
+  shoppingQtyInput: {
+    marginBottom: 8,
+    maxWidth: 110,
+  },
+  shoppingClearBtn: {
+    marginBottom: 0,
+  },
+  shoppingEmptyCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+  },
+  shoppingEmptyText: {
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  shoppingItemCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  shoppingToggleWrap: {
+    paddingTop: 2,
+  },
+  shoppingTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  shoppingItemName: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  shoppingMeta: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  shoppingDeleteBtn: {
+    minWidth: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 1,
   },
   flyersScreenTitle: {
     color: "#10964A",

@@ -115,6 +115,10 @@ function createSqliteStore(filePath) {
       await run("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, id]);
       return this.getUserById(id);
     },
+    async updateUserCardNumber(id, cardNumber) {
+      await run("UPDATE users SET card_number = ? WHERE id = ?", [cardNumber, id]);
+      return this.getUserById(id);
+    },
     async listFlyers() {
       return all("SELECT id, title, price, image FROM flyers ORDER BY id DESC");
     },
@@ -203,6 +207,10 @@ function createPgStore(connectionString) {
     },
     async updateUserPassword(id, passwordHash) {
       await q("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, id]);
+      return this.getUserById(id);
+    },
+    async updateUserCardNumber(id, cardNumber) {
+      await q("UPDATE users SET card_number = $1 WHERE id = $2", [cardNumber, id]);
       return this.getUserById(id);
     },
     async listFlyers() {
