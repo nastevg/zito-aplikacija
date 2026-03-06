@@ -16,6 +16,18 @@ function mapUser(row) {
   };
 }
 
+function mapProductPrice(row) {
+  if (!row) return null;
+  return {
+    barcode: row.barcode,
+    name: row.name,
+    price: row.price,
+    currency: row.currency,
+    unit: row.unit,
+    updatedAt: row.updated_at,
+  };
+}
+
 function readMigrationFiles(engine) {
   const dir = path.join(__dirname, "migrations", engine);
   if (!fs.existsSync(dir)) return [];
@@ -150,6 +162,24 @@ function createSqliteStore(filePath) {
       const rows = await all("SELECT token FROM push_tokens");
       return rows.map((r) => r.token);
     },
+    async getProductPriceByBarcode(barcode) {
+      const row = await get("SELECT * FROM product_prices WHERE barcode = ? LIMIT 1", [barcode]);
+      return mapProductPrice(row);
+    },
+    async upsertProductPrice(item) {
+      await run(
+        `INSERT INTO product_prices (barcode, name, price, currency, unit, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(barcode) DO UPDATE SET
+           name = excluded.name,
+           price = excluded.price,
+           currency = excluded.currency,
+           unit = excluded.unit,
+           updated_at = excluded.updated_at`,
+        [item.barcode, item.name, item.price, item.currency, item.unit, item.updatedAt],
+      );
+      return this.getProductPriceByBarcode(item.barcode);
+    },
   };
 }
 
@@ -245,6 +275,24 @@ function createPgStore(connectionString) {
     async listPushTokens() {
       const r = await q("SELECT token FROM push_tokens");
       return r.rows.map((x) => x.token);
+    },
+    async getProductPriceByBarcode(barcode) {
+      const r = await q("SELECT * FROM product_prices WHERE barcode = $1 LIMIT 1", [barcode]);
+      return mapProductPrice(r.rows[0]);
+    },
+    async upsertProductPrice(item) {
+      await q(
+        `INSERT INTO product_prices (barcode, name, price, currency, unit, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (barcode) DO UPDATE SET
+           name = EXCLUDED.name,
+           price = EXCLUDED.price,
+           currency = EXCLUDED.currency,
+           unit = EXCLUDED.unit,
+           updated_at = EXCLUDED.updated_at`,
+        [item.barcode, item.name, item.price, item.currency, item.unit, item.updatedAt],
+      );
+      return this.getProductPriceByBarcode(item.barcode);
     },
   };
 }

@@ -63,6 +63,14 @@ function isValidCardNumber(cardNumber) {
   return /^\d{6,16}$/.test(cardNumber);
 }
 
+function normalizeBarcode(input) {
+  return String(input || "").replace(/\D/g, "").slice(0, 32);
+}
+
+function isValidBarcode(barcode) {
+  return /^\d{6,32}$/.test(barcode);
+}
+
 async function generateUniqueCardNumber() {
   for (let i = 0; i < 100; i += 1) {
     const candidate = String(Math.floor(1000000 + Math.random() * 8999999));
@@ -432,6 +440,20 @@ app.get("/flyers", requireAuth, (_req, res) => {
     .catch((error) => res.status(500).json({ error: String(error) }));
 });
 
+app.post("/price/check", requireAuth, async (req, res) => {
+  const barcode = normalizeBarcode(req.body?.barcode);
+  if (!isValidBarcode(barcode)) {
+    return res.status(400).json({ error: "Invalid barcode format" });
+  }
+  try {
+    const price = await db.getProductPriceByBarcode(barcode);
+    if (!price) return res.status(404).json({ error: "Product not found" });
+    return res.json(price);
+  } catch (error) {
+    return res.status(500).json({ error: String(error) });
+  }
+});
+
 app.get("/notifications", requireAuth, (_req, res) => {
   db.listNotifications()
     .then((rows) => res.json(rows))
@@ -517,6 +539,31 @@ app.post("/admin/push-broadcast", requireAdmin, async (req, res) => {
     return res.json(result);
   } catch (error) {
     return res.status(500).json({ error: "Push send failed", detail: String(error) });
+  }
+});
+
+app.post("/admin/prices", requireAdmin, async (req, res) => {
+  const barcode = normalizeBarcode(req.body?.barcode);
+  const name = String(req.body?.name || "").trim();
+  const price = String(req.body?.price || "").trim();
+  const currency = String(req.body?.currency || "MKD").trim() || "MKD";
+  const unit = String(req.body?.unit || "").trim();
+
+  if (!isValidBarcode(barcode)) return res.status(400).json({ error: "Invalid barcode format" });
+  if (!name || !price) return res.status(400).json({ error: "name and price are required" });
+
+  try {
+    const saved = await db.upsertProductPrice({
+      barcode,
+      name,
+      price,
+      currency,
+      unit,
+      updatedAt: new Date().toISOString(),
+    });
+    return res.json(saved);
+  } catch (error) {
+    return res.status(500).json({ error: String(error) });
   }
 });
 
