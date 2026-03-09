@@ -250,3 +250,18 @@
 - Validation:
   - `node --check backend/index.js` passed
   - `node --check backend/db.js` passed
+
+## March 9, 2026 - [Release Prep] Versioning + env profiles + release checklist
+- Updated `zito-app/app.json`:
+  - enabled `runtimeVersion.policy = appVersion`
+  - added `ios.buildNumber` baseline
+  - added `android.versionCode` baseline
+- Updated `zito-app/eas.json` build profiles with explicit env config:
+  - `EXPO_PUBLIC_APP_ENV` per profile (`development`, `preview`, `production`)
+  - `EXPO_PUBLIC_API_BASE` per profile
+- Updated `zito-app/app.config.js` to expose `extra.appEnv` at runtime.
+- Added release operations guide:
+  - `RELEASE_PREP_CHECKLIST.md`
+- Validation:
+  - `npx tsc --noEmit` passed
+  - JSON parse checks for `app.json` and `eas.json` passed
