@@ -425,9 +425,7 @@
       }
 
       function openNewUpload(group) {
-        const fileName = prompt("Enter new file name (without extension). Supported: png/jpg/webp/pdf", "new-file");
-        if (!fileName) return;
-        pendingUploadTarget = { mode: "new", group, file: fileName.trim() };
+        pendingUploadTarget = { mode: "new", group, file: "" };
         galleryFileInput.click();
       }
 
