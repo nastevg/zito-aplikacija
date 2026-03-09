@@ -1343,7 +1343,7 @@ function HomeScreen({
             }}
             renderItem={({ item }) => {
               const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
-              const thumbUrl = normalizeExternalFlyerUrl(item.thumbnailUrl);
+              const thumbUrl = normalizeExternalFlyerUrl(item.thumbnailUrl) || derivePdfThumbnailUrl(targetUrl);
               const isPdf = Boolean(item.isPdf || (targetUrl && /\.pdf($|\?)/i.test(targetUrl)));
               const pdfUri = targetUrl ? cachedPdfUrls[targetUrl] || targetUrl : "";
               const imageSource = item.image ? item.image : targetUrl ? { uri: targetUrl } : null;
@@ -1461,6 +1461,14 @@ function normalizeExternalFlyerUrl(value: string | undefined) {
   if (/^https?:\/\//i.test(raw)) return raw;
   if (/^www\./i.test(raw)) return `https://${raw}`;
   return "";
+}
+
+function derivePdfThumbnailUrl(pdfUrl: string | undefined) {
+  const normalized = normalizeExternalFlyerUrl(pdfUrl);
+  if (!normalized || !/\.pdf($|\?)/i.test(normalized)) return "";
+  const queryIndex = normalized.indexOf("?");
+  const base = queryIndex >= 0 ? normalized.slice(0, queryIndex) : normalized;
+  return `${base}.thumb.jpg`;
 }
 
 function hashText(input: string) {
