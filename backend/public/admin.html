@@ -196,6 +196,7 @@
 
     <pre id="out">Ready.</pre>
     <input id="galleryFileInput" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display: none" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <script>
       const base = location.origin;
@@ -209,6 +210,9 @@
       const tokenInput = document.getElementById("token");
       const galleryFileInput = document.getElementById("galleryFileInput");
       let pendingUploadTarget = null;
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }
 
       function adminHeaders() {
         return {
@@ -386,7 +390,10 @@
                 (item) => {
                   const lowerFile = String(item.file || "").toLowerCase();
                   const isPdf = lowerFile.endsWith(".pdf");
-                  const preview = isPdf
+                  const preview = isPdf && item.thumbnailUrl
+                    ? `<img src="${escapeHtml(item.thumbnailUrl)}" alt="${escapeHtml(item.label)}" loading="lazy"
+                        onclick="openReplaceUpload('${escapeHtml(item.group || "")}','${escapeHtml(item.file)}')" />`
+                    : isPdf
                     ? `<div class="gallery-pdf">PDF</div>`
                     : `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.label)}" loading="lazy"
                         onclick="openReplaceUpload('${escapeHtml(item.group || "")}','${escapeHtml(item.file)}')" />`;
@@ -445,6 +452,32 @@
         });
       }
 
+      async function buildPdfThumbnailBase64(file) {
+        try {
+          if (!window.pdfjsLib || String(file?.type || "").toLowerCase() !== "application/pdf") return "";
+          const fileBytes = await file.arrayBuffer();
+          const pdf = await window.pdfjsLib.getDocument({ data: fileBytes }).promise;
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 1 });
+          const maxWidth = 420;
+          const scale = viewport.width > maxWidth ? maxWidth / viewport.width : 1;
+          const scaledViewport = page.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.floor(scaledViewport.width));
+          canvas.height = Math.max(1, Math.floor(scaledViewport.height));
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return "";
+          await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+          const marker = "base64,";
+          const idx = dataUrl.indexOf(marker);
+          if (idx < 0) return "";
+          return dataUrl.slice(idx + marker.length);
+        } catch (_error) {
+          return "";
+        }
+      }
+
       async function handleGalleryFilePicked(event) {
         try {
           const file = event?.target?.files?.[0];
@@ -458,6 +491,7 @@
             return;
           }
           const dataBase64 = await fileToBase64(file);
+          const thumbnailBase64 = await buildPdfThumbnailBase64(file);
           let targetFile = pendingUploadTarget.file;
           if (pendingUploadTarget.mode === "new") {
             const originalName = String(file.name || "").trim() || "new-file";
@@ -476,6 +510,7 @@
             fileName: file.name,
             mimeType,
             dataBase64,
+            thumbnailBase64,
           });
           if (ok) await loadApkGallery();
         } catch (error) {

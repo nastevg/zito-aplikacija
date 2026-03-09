@@ -121,6 +121,10 @@ async function listApkAssets(group) {
     .sort((a, b) => a.fileName.localeCompare(b.fileName));
 }
 
+function isPdfThumbnailFileName(fileName) {
+  return /\.pdf\.thumb\.jpe?g$/i.test(String(fileName || ""));
+}
+
 function sanitizeAssetFilename(name) {
   const base = String(name || "")
     .replace(/[^\w.\-() ]+/g, "_")
@@ -356,20 +360,29 @@ async function buildApkGalleryPayload(req) {
   const mkUrl = (group, file) => `${getBackendBaseUrl(req)}/cms/apk-asset/${group}/${encodeURIComponent(file)}`;
   const currentRows = await listApkAssets("letoci");
   const bestRows = await listApkAssets("akcii");
-  const currentFlyers = currentRows.map((row, idx) => ({
-    id: `letok-${idx + 1}`,
-    label: `Letok ${idx + 1}`,
-    file: row.fileName,
-    imageUrl: mkUrl("letoci", row.fileName),
-    isPdf: /\.pdf$/i.test(row.fileName),
-  }));
-  const bestDeals = bestRows.map((row, idx) => ({
-    id: `akcija-${idx + 1}`,
-    label: `Akcija ${idx + 1}`,
-    file: row.fileName,
-    imageUrl: mkUrl("akcii", row.fileName),
-    isPdf: /\.pdf$/i.test(row.fileName),
-  }));
+
+  const buildItems = (rows, group, idPrefix, labelPrefix) => {
+    const thumbnailByPdfName = new Map();
+    for (const row of rows) {
+      if (!isPdfThumbnailFileName(row.fileName)) continue;
+      const pdfName = String(row.fileName).replace(/\.thumb\.jpe?g$/i, "");
+      thumbnailByPdfName.set(pdfName, mkUrl(group, row.fileName));
+    }
+
+    return rows
+      .filter((row) => !isPdfThumbnailFileName(row.fileName))
+      .map((row, idx) => ({
+        id: `${idPrefix}-${idx + 1}`,
+        label: `${labelPrefix} ${idx + 1}`,
+        file: row.fileName,
+        imageUrl: mkUrl(group, row.fileName),
+        isPdf: /\.pdf$/i.test(row.fileName),
+        thumbnailUrl: /\.pdf$/i.test(row.fileName) ? thumbnailByPdfName.get(row.fileName) || "" : "",
+      }));
+  };
+
+  const currentFlyers = buildItems(currentRows, "letoci", "letok", "Letok");
+  const bestDeals = buildItems(bestRows, "akcii", "akcija", "Akcija");
   return { currentFlyers, bestDeals };
 }
 
@@ -409,6 +422,26 @@ app.post("/admin/apk-gallery/upload", requireAdmin, async (req, res) => {
     data: buffer,
     updatedAt: new Date().toISOString(),
   });
+
+  if (ext === ".pdf") {
+    const thumbRaw = String(req.body?.thumbnailBase64 || "").trim();
+    if (thumbRaw) {
+      try {
+        const thumbBuffer = decodeBase64Image(thumbRaw);
+        if (thumbBuffer && thumbBuffer.length > 0 && thumbBuffer.length <= 5 * 1024 * 1024) {
+          await db.upsertCmsAsset({
+            groupName: group,
+            fileName: `${finalName}.thumb.jpg`,
+            mimeType: "image/jpeg",
+            data: thumbBuffer,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      } catch (_error) {
+        // Do not fail main PDF upload when thumbnail generation fails.
+      }
+    }
+  }
   return res.json({ ok: true, group, file: finalName, bytes: buffer.length, storage: "db" });
 });
 

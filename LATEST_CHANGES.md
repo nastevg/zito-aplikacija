@@ -29,6 +29,21 @@
   - `node --check backend/index.js` passed
   - `npx tsc --noEmit` passed
 
+## March 9, 2026 - [CMS PDF] Automatic first-page thumbnail generation on upload
+- Admin panel (`backend/public/admin.html`):
+  - on local PDF upload, automatically renders page 1 via `pdf.js` and sends JPEG thumbnail in the same request
+  - PDF tiles now show generated thumbnail in Admin Visual Catalog when available
+- Backend (`backend/index.js`):
+  - `POST /admin/apk-gallery/upload` accepts optional `thumbnailBase64` for PDF uploads
+  - stores thumbnail as companion asset (`<pdf-file>.thumb.jpg`) in CMS DB
+  - `/cms/apk-gallery` and `/admin/apk-gallery` now include `thumbnailUrl` for PDF items
+- Mobile app (`zito-app/App.tsx`):
+  - Home current-flyers PDF cards now prefer `thumbnailUrl` image preview
+  - falls back to native PDF first-page renderer only if thumbnail is missing
+- Validation:
+  - `node --check backend/index.js` passed
+  - `npx tsc --noEmit` passed
+
 ## March 5, 2026 - Login language selector on first screen
 - Added language switch buttons (flag chips) at the bottom of the Login/Register screen.
 - Supported quick language switch: Macedonian (`🇲🇰`), English (`🇬🇧`), Albanian (`🇦🇱`), Turkish (`🇹🇷`).

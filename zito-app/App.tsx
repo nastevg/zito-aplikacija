@@ -90,6 +90,7 @@ type ApkGalleryItem = {
   label: string;
   file: string;
   imageUrl: string;
+  thumbnailUrl?: string;
   isPdf?: boolean;
 };
 
@@ -176,6 +177,7 @@ type CurrentFlyerMock = {
   price: string;
   image?: number;
   imageUrl?: string;
+  thumbnailUrl?: string;
   isPdf?: boolean;
 };
 
@@ -1341,6 +1343,7 @@ function HomeScreen({
             }}
             renderItem={({ item }) => {
               const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
+              const thumbUrl = normalizeExternalFlyerUrl(item.thumbnailUrl);
               const isPdf = Boolean(item.isPdf || (targetUrl && /\.pdf($|\?)/i.test(targetUrl)));
               const pdfUri = targetUrl ? cachedPdfUrls[targetUrl] || targetUrl : "";
               const imageSource = item.image ? item.image : targetUrl ? { uri: targetUrl } : null;
@@ -1351,14 +1354,18 @@ function HomeScreen({
                 >
                   {isPdf && targetUrl ? (
                     <View style={styles.currentFlyerPdfCard}>
-                      <Pdf
-                        source={{ uri: pdfUri, cache: true }}
-                        style={styles.currentFlyerPdfWebView}
-                        page={1}
-                        singlePage
-                        fitPolicy={0}
-                        trustAllCerts={false}
-                      />
+                      {thumbUrl ? (
+                        <Image source={{ uri: thumbUrl }} style={styles.currentFlyerPdfWebView} resizeMode="cover" />
+                      ) : (
+                        <Pdf
+                          source={{ uri: pdfUri, cache: true }}
+                          style={styles.currentFlyerPdfWebView}
+                          page={1}
+                          singlePage
+                          fitPolicy={0}
+                          trustAllCerts={false}
+                        />
+                      )}
                       <View style={styles.currentFlyerPdfBadge}>
                         <MaterialIcons name="picture-as-pdf" size={14} color="#FFFFFF" />
                         <Text style={styles.currentFlyerPdfBadgeText}>PDF</Text>
@@ -2660,6 +2667,7 @@ export default function App() {
           title: String(item.label || item.file || "Flyer"),
           price: "",
           imageUrl: String(item.imageUrl || ""),
+          thumbnailUrl: String(item.thumbnailUrl || ""),
           isPdf: Boolean(item.isPdf),
         }))
       : [];
