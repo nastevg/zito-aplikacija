@@ -423,7 +423,7 @@
       }
 
       function openNewUpload(group) {
-        pendingUploadTarget = { mode: "new", group, file: "" };
+        pendingUploadTarget = { mode: "new", group, file: "", createdAt: Date.now() };
         galleryFileInput.click();
       }
 
@@ -458,10 +458,18 @@
             return;
           }
           const dataBase64 = await fileToBase64(file);
-          const targetFile =
-            pendingUploadTarget.mode === "replace"
-              ? pendingUploadTarget.file
-              : pendingUploadTarget.file || file.name;
+          let targetFile = pendingUploadTarget.file;
+          if (pendingUploadTarget.mode === "new") {
+            const originalName = String(file.name || "").trim() || "new-file";
+            const dotIndex = originalName.lastIndexOf(".");
+            if (dotIndex > 0) {
+              const base = originalName.slice(0, dotIndex);
+              const ext = originalName.slice(dotIndex);
+              targetFile = `${base}-${pendingUploadTarget.createdAt || Date.now()}${ext}`;
+            } else {
+              targetFile = `${originalName}-${pendingUploadTarget.createdAt || Date.now()}`;
+            }
+          }
           const ok = await callUpload("/admin/apk-gallery/upload", {
             group: pendingUploadTarget.group,
             targetFile,
