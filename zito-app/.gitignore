@@ -5,9 +5,15 @@ node_modules/
 
 # Expo
 .expo/
+.eas-appdata/
+.eas-localappdata/
+.npm-cache/
 dist/
 web-build/
 expo-env.d.ts
+secrets/
+*.xlsx
+~$*.xlsx
 
 # Native
 .kotlin/

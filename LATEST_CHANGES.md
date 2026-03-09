@@ -211,3 +211,14 @@
 - Next continuation point on macOS:
   - open existing EAS iOS build
   - run parity QA and fix remaining iOS-specific issues.
+
+## March 9, 2026 - [Cleanup] Stabilization pass (1/2/3)
+- Centralized repeated headline title style into shared constant (`HEADLINE_TEXT_STYLE`) in `zito-app/App.tsx`.
+- Removed unused code paths:
+  - deleted temporary/unused i18n keys `screen_more_title` (all languages)
+  - removed unused `MainTabs` props and handlers for manual push register/test (`onRegisterPush`, `onSendTestPush`, related handlers)
+- Hardening for source/build hygiene:
+  - updated `zito-app/.gitignore` to ignore local cache and secret/data artifacts
+  - added `zito-app/.easignore` to reduce EAS archive size and exclude local-only files
+  - added root `.gitignore` for local working folders (`akcii/`, `flaeri/`)
+- Validation: `npx tsc --noEmit` passed.

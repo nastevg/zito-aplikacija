@@ -1,0 +1,16 @@
+# Large/local artifacts not required for cloud builds
+.expo/
+.eas-appdata/
+.eas-localappdata/
+.npm-cache/
+node_modules/
+
+# Local secrets and office files
+secrets/
+*.xlsx
+~$*.xlsx
+
+# Local native output folders
+android/.gradle/
+android/app/build/
+ios/build/
