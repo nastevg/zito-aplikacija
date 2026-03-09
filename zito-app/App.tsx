@@ -1218,7 +1218,7 @@ function HomeScreen({
   const currentCardWidth = Math.max(112, Math.min(164, Math.round(currentCardHeight * 0.78)));
   const currentFlyersGap = 10;
   const currentFlyersItemSize = currentCardWidth + currentFlyersGap;
-  const currentFlyersData = currentFlyers.length > 0 ? currentFlyers : currentFlyersMock;
+  const currentFlyersData = currentFlyers;
   const baseFlyersCount = currentFlyersData.length;
   const endlessFlyers = useMemo(
     () => [...currentFlyersData, ...currentFlyersData, ...currentFlyersData],
@@ -2565,7 +2565,7 @@ export default function App() {
 
   const [user, setUser] = useState<User>(fallbackUser);
   const [flyers, setFlyers] = useState<Flyer[]>(fallbackFlyers);
-  const [currentFlyers, setCurrentFlyers] = useState<CurrentFlyerMock[]>(currentFlyersMock);
+  const [currentFlyers, setCurrentFlyers] = useState<CurrentFlyerMock[]>([]);
   const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
   const [card, setCard] = useState<CardData>(fallbackCard);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
@@ -2665,7 +2665,7 @@ export default function App() {
       : [];
     setUser(nextUser);
     setFlyers(nextFlyers);
-    setCurrentFlyers(nextCurrentFlyers.length > 0 ? nextCurrentFlyers : currentFlyersMock);
+    setCurrentFlyers(nextCurrentFlyers);
     setNotices(nextNotices);
     setCard(nextCard);
   };
@@ -2963,7 +2963,7 @@ export default function App() {
     autoPushAttemptedRef.current = false;
     setUser(fallbackUser);
     setFlyers(fallbackFlyers);
-    setCurrentFlyers(currentFlyersMock);
+    setCurrentFlyers([]);
     setNotices(fallbackNotices);
     setCard(fallbackCard);
   };

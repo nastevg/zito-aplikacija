@@ -17,6 +17,18 @@
   - `node --check backend/index.js` passed
   - `node --check backend/db.js` passed
 
+## March 9, 2026 - [Backend/Mobile] Removed fallback flyer reset behavior
+- Backend (`backend/index.js`):
+  - `listApkAssets` now returns CMS assets only from database (no filesystem fallback list for gallery API).
+  - prevents old bundled assets from reappearing after backend restart/redeploy.
+- Mobile (`zito-app/App.tsx`):
+  - removed `currentFlyersMock` fallback usage for CMS current flyers.
+  - home now renders only data received from `/cms/apk-gallery`.
+  - when CMS has no current flyers, section stays empty instead of showing old defaults.
+- Validation:
+  - `node --check backend/index.js` passed
+  - `npx tsc --noEmit` passed
+
 ## March 5, 2026 - Login language selector on first screen
 - Added language switch buttons (flag chips) at the bottom of the Login/Register screen.
 - Supported quick language switch: Macedonian (`🇲🇰`), English (`🇬🇧`), Albanian (`🇦🇱`), Turkish (`🇹🇷`).

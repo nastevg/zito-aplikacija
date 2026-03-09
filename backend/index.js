@@ -109,35 +109,16 @@ function isValidBarcode(barcode) {
   return /^\d{6,32}$/.test(barcode);
 }
 
-function listApkAssetFiles(group) {
-  const dir = APK_ASSET_GROUP_DIRS[group];
-  if (!dir || !fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((name) => /\.(png|jpe?g|webp|pdf)$/i.test(name))
-    .sort((a, b) => a.localeCompare(b));
-}
-
 async function listApkAssets(group) {
   const dbRows = await db.listCmsAssets(group);
-  const dbFiles = new Set(dbRows.map((row) => String(row.fileName || "")));
-  const fsRows = listApkAssetFiles(group)
-    .filter((fileName) => !dbFiles.has(fileName))
-    .map((fileName) => ({
-      groupName: group,
-      fileName,
-      mimeType: ASSET_EXT_TO_MIME[ASSET_URL_EXT_TO_EXT[path.extname(fileName).toLowerCase()] || ""] || "application/octet-stream",
-      source: "fs",
-    }));
-
-  const normalizedDbRows = dbRows.map((row) => ({
-    groupName: row.groupName,
-    fileName: row.fileName,
-    mimeType: row.mimeType,
-    source: "db",
-  }));
-
-  return [...normalizedDbRows, ...fsRows].sort((a, b) => a.fileName.localeCompare(b.fileName));
+  return dbRows
+    .map((row) => ({
+      groupName: row.groupName,
+      fileName: row.fileName,
+      mimeType: row.mimeType,
+      source: "db",
+    }))
+    .sort((a, b) => a.fileName.localeCompare(b.fileName));
 }
 
 function sanitizeAssetFilename(name) {
