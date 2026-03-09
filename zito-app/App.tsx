@@ -1455,7 +1455,11 @@ function HomeScreen({
                 setPdfLoadError("");
               }}
               onError={(error) => {
-                setPdfLoadError(String(error?.message || "PDF не може да се отвори"));
+                const message =
+                  error && typeof error === "object" && "message" in error
+                    ? String((error as { message?: unknown }).message || "PDF не може да се отвори")
+                    : "PDF не може да се отвори";
+                setPdfLoadError(message);
               }}
               trustAllCerts={false}
             />
