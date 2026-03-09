@@ -82,6 +82,19 @@ type ProductPrice = {
   updatedAt: string;
 };
 
+type ApkGalleryItem = {
+  id: string;
+  label: string;
+  file: string;
+  imageUrl: string;
+  isPdf?: boolean;
+};
+
+type ApkGalleryPayload = {
+  currentFlyers: ApkGalleryItem[];
+  bestDeals: ApkGalleryItem[];
+};
+
 type MarketLocation = {
   name: string;
   city: string;
@@ -158,7 +171,9 @@ type CurrentFlyerMock = {
   id: string;
   title: string;
   price: string;
-  image: number;
+  image?: number;
+  imageUrl?: string;
+  isPdf?: boolean;
 };
 
 type BestDealMock = {
@@ -1180,7 +1195,17 @@ function BarcodeStrip({ value, height = 64 }: { value: string; height?: number }
   );
 }
 
-function HomeScreen({ user, card, onOpenShoppingList }: { user: User; card: CardData; onOpenShoppingList: () => void }) {
+function HomeScreen({
+  user,
+  card,
+  currentFlyers,
+  onOpenShoppingList,
+}: {
+  user: User;
+  card: CardData;
+  currentFlyers: CurrentFlyerMock[];
+  onOpenShoppingList: () => void;
+}) {
   const { mode, palette, toggleTheme } = useAppTheme();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
@@ -1190,12 +1215,25 @@ function HomeScreen({ user, card, onOpenShoppingList }: { user: User; card: Card
   const currentCardWidth = Math.max(112, Math.min(164, Math.round(currentCardHeight * 0.78)));
   const currentFlyersGap = 10;
   const currentFlyersItemSize = currentCardWidth + currentFlyersGap;
-  const baseFlyersCount = currentFlyersMock.length;
+  const currentFlyersData = currentFlyers.length > 0 ? currentFlyers : currentFlyersMock;
+  const baseFlyersCount = currentFlyersData.length;
   const endlessFlyers = useMemo(
-    () => [...currentFlyersMock, ...currentFlyersMock, ...currentFlyersMock],
-    [],
+    () => [...currentFlyersData, ...currentFlyersData, ...currentFlyersData],
+    [currentFlyersData],
   );
   const flyersListRef = useRef<FlatList<CurrentFlyerMock> | null>(null);
+
+  const openCurrentFlyer = async (item: CurrentFlyerMock) => {
+    const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
+    if (!targetUrl) return;
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      if (!canOpen) return;
+      await Linking.openURL(targetUrl);
+    } catch {
+      // Ignore URL open failures.
+    }
+  };
 
   useEffect(() => {
     const targetIndex = baseFlyersCount;
@@ -1252,11 +1290,30 @@ function HomeScreen({ user, card, onOpenShoppingList }: { user: User; card: Card
             onScrollToIndexFailed={(info) => {
               setTimeout(() => flyersListRef.current?.scrollToIndex({ index: info.index, animated: false }), 50);
             }}
-            renderItem={({ item }) => (
-              <View style={[styles.currentFlyerCard, { backgroundColor: palette.card, width: currentCardWidth, minHeight: currentCardHeight }]}>
-                <Image source={item.image} style={styles.currentFlyerImage} resizeMode="cover" />
-              </View>
-            )}
+            renderItem={({ item }) => {
+              const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
+              const isPdf = Boolean(item.isPdf || (targetUrl && /\.pdf($|\?)/i.test(targetUrl)));
+              const imageSource = item.image ? item.image : targetUrl ? { uri: targetUrl } : null;
+              return (
+                <Pressable
+                  style={[styles.currentFlyerCard, { backgroundColor: palette.card, width: currentCardWidth, minHeight: currentCardHeight }]}
+                  onPress={targetUrl ? () => void openCurrentFlyer(item) : undefined}
+                >
+                  {isPdf ? (
+                    <View style={styles.currentFlyerPdfCard}>
+                      <MaterialIcons name="picture-as-pdf" size={36} color="#B31F1F" />
+                      <Text style={styles.currentFlyerPdfLabel}>PDF</Text>
+                    </View>
+                  ) : imageSource ? (
+                    <Image source={imageSource} style={styles.currentFlyerImage} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.currentFlyerPdfCard}>
+                      <Text style={styles.currentFlyerPdfLabel}>No Image</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            }}
           />
         </View>
 
@@ -2144,6 +2201,7 @@ function ScreenWrap({
 function MainTabs({
   user,
   flyers,
+  currentFlyers,
   notices,
   card,
   shoppingItems,
@@ -2167,6 +2225,7 @@ function MainTabs({
 }: {
   user: User;
   flyers: Flyer[];
+  currentFlyers: CurrentFlyerMock[];
   notices: Notice[];
   card: CardData;
   shoppingItems: ShoppingItem[];
@@ -2275,7 +2334,14 @@ function MainTabs({
       })}
     >
       <Tab.Screen name="Home" options={{ title: t("tab_home") }}>
-        {({ navigation }) => <HomeScreen user={user} card={card} onOpenShoppingList={() => navigation.navigate("Shopping")} />}
+        {({ navigation }) => (
+          <HomeScreen
+            user={user}
+            card={card}
+            currentFlyers={currentFlyers}
+            onOpenShoppingList={() => navigation.navigate("Shopping")}
+          />
+        )}
       </Tab.Screen>
       <Tab.Screen name="Flyers" options={{ title: t("tab_flyers") }}>
         {({ navigation }) => <FlyersScreen flyers={flyers} onOpenShoppingList={() => navigation.navigate("Shopping")} />}
@@ -2407,6 +2473,7 @@ export default function App() {
 
   const [user, setUser] = useState<User>(fallbackUser);
   const [flyers, setFlyers] = useState<Flyer[]>(fallbackFlyers);
+  const [currentFlyers, setCurrentFlyers] = useState<CurrentFlyerMock[]>(currentFlyersMock);
   const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
   const [card, setCard] = useState<CardData>(fallbackCard);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
@@ -2488,14 +2555,25 @@ export default function App() {
   };
 
   const loadData = async (token: string) => {
-    const [nextUser, nextFlyers, nextNotices, nextCard] = await Promise.all([
+    const [nextUser, nextFlyers, nextNotices, nextCard, nextApkGallery] = await Promise.all([
       apiGet<User>(apiBase, "/me", token),
       apiGet<Flyer[]>(apiBase, "/flyers", token),
       apiGet<Notice[]>(apiBase, "/notifications", token),
       apiGet<CardData>(apiBase, "/loyalty/card", token),
+      apiGet<ApkGalleryPayload>(apiBase, "/cms/apk-gallery", token),
     ]);
+    const nextCurrentFlyers = Array.isArray(nextApkGallery?.currentFlyers)
+      ? nextApkGallery.currentFlyers.map((item) => ({
+          id: String(item.id || ""),
+          title: String(item.label || item.file || "Flyer"),
+          price: "",
+          imageUrl: String(item.imageUrl || ""),
+          isPdf: Boolean(item.isPdf),
+        }))
+      : [];
     setUser(nextUser);
     setFlyers(nextFlyers);
+    setCurrentFlyers(nextCurrentFlyers.length > 0 ? nextCurrentFlyers : currentFlyersMock);
     setNotices(nextNotices);
     setCard(nextCard);
   };
@@ -2793,6 +2871,7 @@ export default function App() {
     autoPushAttemptedRef.current = false;
     setUser(fallbackUser);
     setFlyers(fallbackFlyers);
+    setCurrentFlyers(currentFlyersMock);
     setNotices(fallbackNotices);
     setCard(fallbackCard);
   };
@@ -2894,6 +2973,7 @@ export default function App() {
               <MainTabs
                 user={user}
                 flyers={flyers}
+                currentFlyers={currentFlyers}
                 notices={notices}
                 card={card}
                 shoppingItems={shoppingItems}
@@ -3330,6 +3410,22 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     alignSelf: "center",
+  },
+  currentFlyerPdfCard: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    backgroundColor: "#F8F8F8",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  currentFlyerPdfLabel: {
+    color: "#B31F1F",
+    fontSize: 13,
+    fontWeight: "800",
   },
   mockFlyerTag: {
     color: "#D8F7E6",

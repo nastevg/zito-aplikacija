@@ -335,21 +335,31 @@ app.get("/cms/apk-asset/:group/:file", (req, res) => {
   return res.sendFile(fullPath);
 });
 
-app.get("/admin/apk-gallery", requireAdmin, (req, res) => {
+function buildApkGalleryPayload(req) {
   const mkUrl = (group, file) => `${getBackendBaseUrl(req)}/cms/apk-asset/${group}/${encodeURIComponent(file)}`;
   const currentFlyers = listApkAssetFiles("letoci").map((file, idx) => ({
     id: `letok-${idx + 1}`,
-    label: `Леток ${idx + 1}`,
+    label: `Letok ${idx + 1}`,
     file,
     imageUrl: mkUrl("letoci", file),
+    isPdf: /\.pdf$/i.test(file),
   }));
   const bestDeals = listApkAssetFiles("akcii").map((file, idx) => ({
     id: `akcija-${idx + 1}`,
-    label: `Акција ${idx + 1}`,
+    label: `Akcija ${idx + 1}`,
     file,
     imageUrl: mkUrl("akcii", file),
+    isPdf: /\.pdf$/i.test(file),
   }));
-  return res.json({ currentFlyers, bestDeals });
+  return { currentFlyers, bestDeals };
+}
+
+app.get("/cms/apk-gallery", (req, res) => {
+  return res.json(buildApkGalleryPayload(req));
+});
+
+app.get("/admin/apk-gallery", requireAdmin, (req, res) => {
+  return res.json(buildApkGalleryPayload(req));
 });
 
 app.post("/admin/apk-gallery/upload", requireAdmin, (req, res) => {
@@ -865,4 +875,5 @@ start().catch((error) => {
   console.error("Failed to start backend:", error);
   process.exit(1);
 });
+
 
