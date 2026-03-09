@@ -10,8 +10,19 @@ const { dbFactory } = require("./db");
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "change-me";
-const JWT_SECRET = process.env.JWT_SECRET || "change-me";
+const isProduction = process.env.NODE_ENV === "production";
+const envAdminToken = String(process.env.ADMIN_TOKEN || "").trim();
+const envJwtSecret = String(process.env.JWT_SECRET || "").trim();
+
+if (
+  isProduction &&
+  (!envAdminToken || envAdminToken === "change-me" || !envJwtSecret || envJwtSecret === "change-me")
+) {
+  throw new Error("ADMIN_TOKEN and JWT_SECRET must be set to secure values in production.");
+}
+
+const ADMIN_TOKEN = envAdminToken && envAdminToken !== "change-me" ? envAdminToken : "local-dev-admin-token";
+const JWT_SECRET = envJwtSecret && envJwtSecret !== "change-me" ? envJwtSecret : "local-dev-jwt-secret";
 const BACKEND_PUBLIC_URL = (process.env.BACKEND_PUBLIC_URL || "").replace(/\/+$/, "");
 const db = dbFactory();
 const oauthStateStore = new Map();
@@ -638,7 +649,6 @@ async function start() {
     console.log(`Zito backend listening on http://localhost:${PORT}`);
     console.log(`Database engine: ${db.type}`);
     console.log(`Admin panel: http://localhost:${PORT}/admin.html`);
-    console.log(`Admin token: ${ADMIN_TOKEN}`);
   });
 }
 

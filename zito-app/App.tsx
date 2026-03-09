@@ -1,4 +1,4 @@
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+﻿import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
@@ -103,12 +103,6 @@ type LanguageCode = "mk" | "en" | "sq" | "tr";
 const HEADLINE_COLOR = "#1F5D3A";
 const HEADLINE_OUTLINE_COLOR = "#1F5D3A";
 const HEADLINE_OUTLINE_RADIUS = 0;
-const HEADLINE_TEXT_STYLE: TextStyle = {
-  color: HEADLINE_COLOR,
-  textShadowColor: HEADLINE_OUTLINE_COLOR,
-  textShadowOffset: { width: 0, height: 0 },
-  textShadowRadius: HEADLINE_OUTLINE_RADIUS,
-};
 type ThemePalette = {
   bg: string;
   card: string;
@@ -134,7 +128,7 @@ const OAUTH_REDIRECT_URI = "zitoapp://oauth/callback";
 
 const fallbackUser: User = {
   id: "u1",
-  name: "???? ????????",
+  name: "Жито Корисник",
   email: "korisnik@zito.mk",
   points: 1280,
   coupons: 4,
@@ -142,15 +136,15 @@ const fallbackUser: User = {
 };
 
 const fallbackFlyers: Flyer[] = [
-  { id: "f1", title: "?????? ? ????????", price: "49 ???." },
-  { id: "f2", title: "????????", price: "99 ???." },
-  { id: "f3", title: "?????? ?????????", price: "119 ???." },
-  { id: "f4", title: "?????? ? ??????", price: "79 ???." },
+  { id: "f1", title: "Овошје и зеленчук", price: "49 ден." },
+  { id: "f2", title: "Пијалоци", price: "99 ден." },
+  { id: "f3", title: "Млечни производи", price: "119 ден." },
+  { id: "f4", title: "Слатки и грицки", price: "79 ден." },
 ];
 
 const fallbackNotices: Notice[] = [
-  { id: "n1", title: "????", body: "??? ???? ????? ? ???????.", createdAt: "???? 5 ??????" },
-  { id: "n2", title: "?????????? ??????", body: "20% ?????? ?? ??????? ?????????.", createdAt: "?????" },
+  { id: "n1", title: "Жито", body: "Нов Жито леток е објавен.", createdAt: "пред 5 минути" },
+  { id: "n2", title: "Специјална понуда", body: "20% попуст за лојални корисници.", createdAt: "денес" },
 ];
 
 const fallbackCard: CardData = {
@@ -174,12 +168,12 @@ type BestDealMock = {
 };
 
 const currentFlyersMock: CurrentFlyerMock[] = [
-  { id: "c1", title: "???? ????? 1", price: "", image: require("./assets/images/letoci/OIP.webp") },
-  { id: "c2", title: "???? ????? 2", price: "", image: require("./assets/images/letoci/OIP (1).webp") },
-  { id: "c3", title: "???? ????? 3", price: "", image: require("./assets/images/letoci/OIP (2).webp") },
-  { id: "c4", title: "???? ????? 4", price: "", image: require("./assets/images/letoci/OIP (3).webp") },
-  { id: "c5", title: "???? ????? 5", price: "", image: require("./assets/images/letoci/OIP (4).webp") },
-  { id: "c6", title: "???? ????? 6", price: "", image: require("./assets/images/letoci/tip-4-566x800.png") },
+  { id: "c1", title: "Тест леток 1", price: "", image: require("./assets/images/letoci/OIP.webp") },
+  { id: "c2", title: "Тест леток 2", price: "", image: require("./assets/images/letoci/OIP (1).webp") },
+  { id: "c3", title: "Тест леток 3", price: "", image: require("./assets/images/letoci/OIP (2).webp") },
+  { id: "c4", title: "Тест леток 4", price: "", image: require("./assets/images/letoci/OIP (3).webp") },
+  { id: "c5", title: "Тест леток 5", price: "", image: require("./assets/images/letoci/OIP (4).webp") },
+  { id: "c6", title: "Тест леток 6", price: "", image: require("./assets/images/letoci/tip-4-566x800.png") },
 ];
 
 const akcijaImages = [
@@ -192,7 +186,7 @@ const akcijaImages = [
 
 const bestDealsMock: BestDealMock[] = Array.from({ length: 16 }, (_, index) => ({
   id: `b${index + 1}`,
-  title: `???? ?????? ${index + 1}`,
+  title: `Тест акција ${index + 1}`,
   price: "",
   image: akcijaImages[index % akcijaImages.length],
 }));
@@ -242,139 +236,140 @@ function useAppTheme() {
 
 const I18N: Record<LanguageCode, Record<string, string>> = {
   mk: {
-    loading_profile: "?? ??????? ??????...",
-    login: "??????",
-    register: "????????????",
-    name_placeholder: "??? ? ???????",
-    email_placeholder: "?-?????",
-    loyalty_placeholder: "???? ?? ??????? ???????? (??????????)",
-    password_placeholder: "???????",
-    login_email_btn: "?????? ?? email",
-    create_profile_btn: "??????? ??????",
-    no_profile: "????? ??????? ??????????? ??",
-    has_profile: "???? ??????? ?????? ??",
-    login_google: "?????? ?? Google",
-    login_facebook: "?????? ?? Facebook",
-    scan_barcode_camera: "???????? ?????? ?? ??????",
-    scan_barcode_title: "???????? ?????? ?? ??????? ????????",
-    scan_barcode_hint: "??????? ?? ???????? ?? ??????? ?? ????????.",
-    cancel: "??????",
-    camera_permission_error: "???? ??????? ?? ??????. ???????? Camera permission ?? Settings.",
-    invalid_barcode: "????????? ??????. ?????? ????????.",
-    barcode_success: "?????? ??????? ????????.",
-    state_card_saved: "?????????? ? ?????????.",
-    state_card_invalid: "????????? ???? ?? ????????.",
-    state_card_linked: "???? ???????? ? ???? ???????? ?? ???? ??????.",
-    state_card_error: "?????? ??? ????????? ?? ????????.",
-    home_current_flyers: "??????? ??????",
-    home_best_deals: "???????? ?????",
-    points: "?????",
-    coupons: "??????",
-    active_suffix: "???????",
-    tag_zito: "????",
-    tag_action: "??????",
-    tab_home: "???????",
-    tab_flyers: "??????",
-    tab_card: "????????",
-    tab_prices: "????",
-    tab_shopping: "?????",
-    tab_locations: "???????",
-    tab_notifications: "???????????",
-    tab_profile: "??????",
-    tab_more: "??????",
-    screen_flyers_title: "????????? ??????",
-    screen_flyers_subtitle: "????????? ????????? ? ??? ?????",
-    screen_card_title: "????????? ????????",
-    screen_card_subtitle: "???? ????",
-    screen_prices_title: "???????? ?? ????",
-    screen_prices_subtitle: "???????? ?????? ?? ?????????? ????",
-    screen_shopping_title: "?????? ?????",
-    screen_shopping_subtitle: "??????????? ????????? ???? ????????",
-    screen_locations_title: "???????",
-    screen_locations_subtitle: "???????????? GPS ??????? ?? ???????? ?????",
-    locations_all: "????",
-    screen_notifications_title: "???????????",
-    screen_notifications_subtitle: "???????? ? ????????? ????????????",
-    screen_profile_title: "??????",
-    screen_profile_subtitle: "?????????? ?? ??????",
-    screen_more_subtitle: "??? ??????? ?? ???????? ??????",
-    name_label: "???",
-    email_label: "?-?????",
-    push_status_label: "Push ??????",
-    profile_basic_section: "??????? ????????",
-    profile_password_section: "?????????? ???????",
-    current_password_label: "??????? ???????",
-    new_password_label: "???? ???????",
-    confirm_password_label: "??????? ???? ???????",
-    save_profile: "????? ????????",
-    change_password: "????? ???????",
-    profile_status_label: "??????",
-    push_token_label: "Push ?????",
-    no_token: "???? ?????",
-    register_push: "??????????? push",
-    send_test_push: "???? push ????????????",
-    refresh_data: "?????? ????????",
-    price_scan_btn: "???????? ??????? ??????",
-    price_input_placeholder: "????? ??????",
-    price_check_btn: "??????? ????",
-    price_result_title: "?????????? ????",
-    price_barcode_label: "??????",
-    price_updated_label: "?????????",
-    price_not_found: "?????????? ?? ? ?????????.",
-    price_invalid: "????????? ??????.",
-    price_lookup_error: "?????? ??? ???????? ?? ????.",
-    open_shopping_list: "?????? ?????? ?????",
-    shopping_item_placeholder: "????????",
-    shopping_qty_placeholder: "???.",
-    shopping_note_placeholder: "??????? (??????????)",
-    shopping_add_btn: "?????",
-    shopping_clear_checked: "??????? ??????",
-    shopping_empty: "???? ?????????. ????? ??? ????????.",
-    open_in_maps: "?????? ?? ????",
-    no_coordinates: "???? GPS ??????????",
-    coordinates_label: "??????????",
-    locations_search_placeholder: "???????? ??????, ?????? ??? ???????? ?????",
-    locations_find_nearest: "????????? ??????",
-    locations_nearest_found: "????????? ?",
-    locations_gps_unavailable: "GPS ?? ? ???????? ?? ??????.",
-    locations_gps_permission: "???? GPS ??????? ??? ?????????? ? ?????????.",
-    locations_gps_no_markets: "???? ??????? ?? GPS ?????????? ?? ???????????.",
-    locations_no_results: "???? ????????? ?? ?????????????.",
-    logout: "??????",
-    language: "?????",
-    lang_mk: "??????????",
+    loading_profile: "Се вчитува профил...",
+    login: "НАЈАВА",
+    register: "РЕГИСТРАЦИЈА",
+    name_placeholder: "Име и Презиме",
+    email_placeholder: "Е-пошта",
+    loyalty_placeholder: "Број на лојална картичка (опционално)",
+    password_placeholder: "Лозинка",
+    login_email_btn: "Најава со email",
+    create_profile_btn: "Креирај профил",
+    no_profile: "Немаш профил? Регистрирај се",
+    has_profile: "Имаш профил? Најави се",
+    login_google: "Најава со Google",
+    login_facebook: "Најава со Facebook",
+    scan_barcode_camera: "Скенирај баркод со камера",
+    scan_barcode_title: "Скенирај баркод од лојална картичка",
+    scan_barcode_hint: "Порамни го баркодот во средина на камерата.",
+    cancel: "Откажи",
+    camera_permission_error: "Нема дозвола за камера. Овозможи Camera permission во Settings.",
+    invalid_barcode: "Невалиден баркод. Пробај повторно.",
+    barcode_success: "Баркод успешно скениран.",
+    state_card_saved: "Картичката е ажурирана.",
+    state_card_invalid: "Невалиден број на картичка.",
+    state_card_linked: "Оваа картичка е веќе поврзана со друг профил.",
+    state_card_error: "Грешка при ажурирање на картичка.",
+    home_current_flyers: "ТЕКОВНИ ЛЕТОЦИ",
+    home_best_deals: "НАЈДОБРИ АКЦИИ",
+    points: "Поени",
+    coupons: "Купони",
+    active_suffix: "активни",
+    tag_zito: "ЖИТО",
+    tag_action: "АКЦИЈА",
+    tab_home: "Почетна",
+    tab_flyers: "Летоци",
+    tab_card: "Картичка",
+    tab_prices: "Цени",
+    tab_shopping: "Листа",
+    tab_locations: "Локации",
+    tab_notifications: "Известувања",
+    tab_profile: "Профил",
+    tab_more: "Повеќе",
+    screen_flyers_title: "Дигитални флаери",
+    screen_flyers_subtitle: "Истакнати производи и топ акции",
+    screen_card_title: "Дигитална картичка",
+    screen_card_subtitle: "Жито Клуб",
+    screen_prices_title: "Проверка на цена",
+    screen_prices_subtitle: "Скенирај баркод за моментална цена",
+    screen_shopping_title: "Шопинг листа",
+    screen_shopping_subtitle: "Организирај производи пред купување",
+    screen_locations_title: "Локации",
+    screen_locations_subtitle: "Интерактивни GPS локации по населено место",
+    locations_all: "Сите",
+    screen_notifications_title: "Нотификации",
+    screen_notifications_subtitle: "Директна и навремена комуникација",
+    screen_profile_title: "Профил",
+    screen_profile_subtitle: "Управување со сметка",
+    screen_more_title: "More",
+    screen_more_subtitle: "Брз пристап до останати секции",
+    name_label: "Име",
+    email_label: "Е-пошта",
+    push_status_label: "Push статус",
+    profile_basic_section: "Основни податоци",
+    profile_password_section: "Ресетирање лозинка",
+    current_password_label: "Тековна лозинка",
+    new_password_label: "Нова лозинка",
+    confirm_password_label: "Потврди нова лозинка",
+    save_profile: "Сними податоци",
+    change_password: "Смени лозинка",
+    profile_status_label: "Статус",
+    push_token_label: "Push токен",
+    no_token: "Нема токен",
+    register_push: "Регистрирај push",
+    send_test_push: "Тест push нотификација",
+    refresh_data: "Освежи податоци",
+    price_scan_btn: "Скенирај продукт баркод",
+    price_input_placeholder: "Внеси баркод",
+    price_check_btn: "Провери цена",
+    price_result_title: "Моментална цена",
+    price_barcode_label: "Баркод",
+    price_updated_label: "Ажурирано",
+    price_not_found: "Производот не е пронајден.",
+    price_invalid: "Невалиден баркод.",
+    price_lookup_error: "Грешка при проверка на цена.",
+    open_shopping_list: "Отвори шопинг листа",
+    shopping_item_placeholder: "Производ",
+    shopping_qty_placeholder: "Кол.",
+    shopping_note_placeholder: "Белешка (опционално)",
+    shopping_add_btn: "Додај",
+    shopping_clear_checked: "Исчисти купено",
+    shopping_empty: "Нема производи. Додај прв производ.",
+    open_in_maps: "Отвори во мапа",
+    no_coordinates: "Нема GPS координати",
+    coordinates_label: "Координати",
+    locations_search_placeholder: "Пребарај маркет, адреса или населено место",
+    locations_find_nearest: "Најблизок маркет",
+    locations_nearest_found: "Најблизок е",
+    locations_gps_unavailable: "GPS не е достапен на уредот.",
+    locations_gps_permission: "Нема GPS дозвола или локацијата е исклучена.",
+    locations_gps_no_markets: "Нема маркети со GPS координати за пребарување.",
+    locations_no_results: "Нема резултати за пребарувањето.",
+    logout: "Одјава",
+    language: "Јазик",
+    lang_mk: "Македонски",
     lang_en: "English",
     lang_sq: "Shqip",
     lang_tr: "Türkçe",
-    push_physical_device: "Push ?????? ?? ??????? ????.",
-    push_no_permission: "???? ??????? ?? push notifications.",
-    push_missing_project_id: "Push ?? ? ???????????? (??????????? EAS projectId).",
-    push_missing_firebase: "Push ?? ? ???????????? (??????????? Firebase google-services.json).",
-    state_unregistered: "??????????????",
-    state_backend_unavailable: "Backend ?????????? ??????????.",
-    state_offline_demo: "?????? ???? ?????",
-    state_push_token_generated: "Push ????? ?????????",
-    state_push_test_sent: "???? push ? ????????.",
-    state_push_register_first: "???? ??????????? push ?????.",
-    state_push_error: "?????? ??? push ????????????.",
-    state_refreshed: "????????",
-    state_refresh_error: "?? ????? ?? ??????? ????????.",
-    state_profile_saved: "????????? ???????? ?? ???????.",
-    state_profile_email_exists: "???? ?-????? ???? ??????.",
-    state_profile_error: "?? ????? ?? ?? ?????? ????????? ????????.",
-    state_password_changed: "????????? ? ??????? ???????.",
-    state_password_error: "?? ????? ?? ?? ?????? ?????????.",
-    state_password_mismatch: "?????? ??????? ? ????????? ?? ?? ?????????.",
-    state_password_too_short: "?????? ??????? ???? ?? ??? ???????? 6 ?????????.",
-    state_current_password_invalid: "????????? ??????? ? ?????????.",
-    auth_oauth_failed: "OAuth ???????? ?? ?????. ?????? ????????.",
-    auth_oauth_data_missing: "OAuth ???????? ?????, ?? backend ?????????? ?? ?? ????????.",
-    auth_invalid_login: "????????? ??????. ?????? ????????.",
-    auth_card_linked: "???? ??????? ???????? ? ???? ???????? ?? ???? ??????.",
-    auth_card_invalid: "????????? ?????? ?? ???? ?? ??????? ????????.",
-    auth_register_failed: "?????????????? ?? ?????. ??????? ?? ??????????.",
-    auth_invalid_backend_url: "????? ??????? Backend URL (http/https).",
-    auth_oauth_start_failed: "?? ????? ?? ???????? OAuth ?????? ?? ???? ????.",
+    push_physical_device: "Push работи на физички уред.",
+    push_no_permission: "Нема дозвола за push notifications.",
+    push_missing_project_id: "Push не е конфигуриран (недостасува EAS projectId).",
+    push_missing_firebase: "Push не е конфигуриран (недостасува Firebase google-services.json).",
+    state_unregistered: "Нерегистрирано",
+    state_backend_unavailable: "Backend моментално недостапен.",
+    state_offline_demo: "Офлајн демо режим",
+    state_push_token_generated: "Push токен генериран",
+    state_push_test_sent: "Тест push е испратен.",
+    state_push_register_first: "Прво регистрирај push токен.",
+    state_push_error: "Грешка при push регистрација.",
+    state_refreshed: "Освежено",
+    state_refresh_error: "Не можам да освежам податоци.",
+    state_profile_saved: "Основните податоци се снимени.",
+    state_profile_email_exists: "Оваа е-пошта веќе постои.",
+    state_profile_error: "Не можам да ги снимам основните податоци.",
+    state_password_changed: "Лозинката е успешно сменета.",
+    state_password_error: "Не можам да ја сменам лозинката.",
+    state_password_mismatch: "Новата лозинка и потврдата не се совпаѓаат.",
+    state_password_too_short: "Новата лозинка мора да има најмалку 6 карактери.",
+    state_current_password_invalid: "Тековната лозинка е невалидна.",
+    auth_oauth_failed: "OAuth најавата не успеа. Пробај повторно.",
+    auth_oauth_data_missing: "OAuth најавата успеа, но backend податоците не се достапни.",
+    auth_invalid_login: "Невалидна најава. Пробај повторно.",
+    auth_card_linked: "Оваа лојална картичка е веќе поврзана со друг профил.",
+    auth_card_invalid: "Невалиден формат на број на лојална картичка.",
+    auth_register_failed: "Регистрацијата не успеа. Провери ги податоците.",
+    auth_invalid_backend_url: "Внеси валиден Backend URL (http/https).",
+    auth_oauth_start_failed: "Не можам да започнам OAuth најава на овој уред.",
   },
   en: {
     loading_profile: "Loading profile...",
@@ -432,6 +427,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     screen_notifications_subtitle: "Direct and timely communication",
     screen_profile_title: "Profile",
     screen_profile_subtitle: "Account management",
+    screen_more_title: "More",
     screen_more_subtitle: "Quick access to other sections",
     name_label: "Name",
     email_label: "Email",
@@ -567,6 +563,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     screen_notifications_subtitle: "Komunikim i drejtpërdrejtë dhe në kohë",
     screen_profile_title: "Profili",
     screen_profile_subtitle: "Menaxhim i llogarisë",
+    screen_more_title: "More",
     screen_more_subtitle: "Qasje e shpejte te seksionet e tjera",
     name_label: "Emri",
     email_label: "Email",
@@ -702,6 +699,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     screen_notifications_subtitle: "Dogrudan ve zamaninda iletisim",
     screen_profile_title: "Profil",
     screen_profile_subtitle: "Hesap yonetimi",
+    screen_more_title: "More",
     screen_more_subtitle: "Diger bolumlere hizli erisim",
     name_label: "Ad",
     email_label: "E-posta",
@@ -806,52 +804,53 @@ function useI18n() {
 
 const logoImage = require("./assets/images/logo.png");
 const tiltedBadgeImage = require("./assets/images/sekogasverninavas_upscaled-removebg-preview.png");
+const bannerImage = require("./assets/images/home_banner.png");
 const flyersImage = require("./assets/images/flyers_grid.png");
 // Location data refresh marker: 2026-03-06T12:05
 const rawMarketLocations = require("./assets/market_locations.json") as MarketLocation[];
 const marketLocations: MarketLocation[] = rawMarketLocations.map((item) => ({
   name: String(item.name || "").trim(),
-  city: String(item.city || "").trim() || "????????",
+  city: String(item.city || "").trim() || "Останати",
   address: String(item.address || "").trim(),
   lat: typeof item.lat === "number" ? item.lat : null,
   lng: typeof item.lng === "number" ? item.lng : null,
 }));
 
 const CITY_ALIASES: Array<{ city: string; aliases: string[] }> = [
-  { city: "?????", aliases: ["?????", "veles"] },
-  { city: "??????", aliases: ["??????", "skopje"] },
-  { city: "????????", aliases: ["????????", "kumanovo"] },
-  { city: "??????", aliases: ["??????", "tetovo"] },
-  { city: "??????", aliases: ["??????", "kocani"] },
-  { city: "??????", aliases: ["??????", "prilep"] },
-  { city: "????", aliases: ["????", "stip"] },
-  { city: "??????", aliases: ["??????", "bitola"] },
-  { city: "????????", aliases: ["????????", "strumica"] },
-  { city: "?????????", aliases: ["?????????", "kavadarci"] },
-  { city: "??????", aliases: ["??????", "vinica"] },
-  { city: "???????", aliases: ["???????", "delcevo"] },
-  { city: "?????????", aliases: ["?????????", "gevgelija"] },
-  { city: "??????", aliases: ["??????", "kicevo"] },
-  { city: "????????", aliases: ["????????", "gostivar"] },
-  { city: "????????", aliases: ["????????", "negotino"] },
-  { city: "?????????", aliases: ["?????????", "valandovo"] },
-  { city: "???????", aliases: ["???????", "rosoman"] },
-  { city: "????? ??????", aliases: ["????? ??????", "demir kapija"] },
-  { city: "????? ??????", aliases: ["????? ??????", "sveti nikole"] },
-  { city: "?????????", aliases: ["?????????", "probistip"] },
-  { city: "????????", aliases: ["????????", "petrovec"] },
-  { city: "???????", aliases: ["???????", "ilinden"] },
-  { city: "???????", aliases: ["???????", "dracevo"] },
+  { city: "Велес", aliases: ["велес", "veles"] },
+  { city: "Скопје", aliases: ["скопје", "skopje"] },
+  { city: "Куманово", aliases: ["куманово", "kumanovo"] },
+  { city: "Тетово", aliases: ["тетово", "tetovo"] },
+  { city: "Кочани", aliases: ["кочани", "kocani"] },
+  { city: "Прилеп", aliases: ["прилеп", "prilep"] },
+  { city: "Штип", aliases: ["штип", "stip"] },
+  { city: "Битола", aliases: ["битола", "bitola"] },
+  { city: "Струмица", aliases: ["струмица", "strumica"] },
+  { city: "Кавадарци", aliases: ["кавадарци", "kavadarci"] },
+  { city: "Виница", aliases: ["виница", "vinica"] },
+  { city: "Делчево", aliases: ["делчево", "delcevo"] },
+  { city: "Гевгелија", aliases: ["гевгелија", "gevgelija"] },
+  { city: "Кичево", aliases: ["кичево", "kicevo"] },
+  { city: "Гостивар", aliases: ["гостивар", "gostivar"] },
+  { city: "Неготино", aliases: ["неготино", "negotino"] },
+  { city: "Валандово", aliases: ["валандово", "valandovo"] },
+  { city: "Росоман", aliases: ["росоман", "rosoman"] },
+  { city: "Демир Капија", aliases: ["демир капија", "demir kapija"] },
+  { city: "Свети Николе", aliases: ["свети николе", "sveti nikole"] },
+  { city: "Пробиштип", aliases: ["пробиштип", "probistip"] },
+  { city: "Петровец", aliases: ["петровец", "petrovec"] },
+  { city: "Илинден", aliases: ["илинден", "ilinden"] },
+  { city: "Драчево", aliases: ["драчево", "dracevo"] },
 ];
 
 function resolveMarketCity(item: MarketLocation): string {
   const raw = item.city.trim();
-  if (raw && raw !== "????????") return raw;
+  if (raw && raw !== "Останати") return raw;
   const haystack = `${item.name} ${item.address}`.toLowerCase();
   for (const entry of CITY_ALIASES) {
     if (entry.aliases.some((alias) => haystack.includes(alias))) return entry.city;
   }
-  return "????????";
+  return "Останати";
 }
 
 function haversineDistanceKm(
@@ -1301,7 +1300,7 @@ function OutlinedHeader({ text }: { text: string }) {
       <Text
         style={[
           styles.showcaseHeaderMain,
-          HEADLINE_TEXT_STYLE,
+          { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS },
         ]}
       >
         {text}
@@ -1310,6 +1309,9 @@ function OutlinedHeader({ text }: { text: string }) {
   );
 }
 
+function modeShadowColor(green: string) {
+  return green === LIGHT_THEME.green ? "#0A5D30" : "#1E6A3A";
+}
 function FlyersScreen({ flyers, onOpenShoppingList }: { flyers: Flyer[]; onOpenShoppingList: () => void }) {
   const { t } = useI18n();
   const { palette } = useAppTheme();
@@ -1317,7 +1319,7 @@ function FlyersScreen({ flyers, onOpenShoppingList }: { flyers: Flyer[]; onOpenS
     <ScreenWrap
       title={t("screen_flyers_title")}
       subtitle={t("screen_flyers_subtitle")}
-      titleStyle={[styles.flyersScreenTitle, HEADLINE_TEXT_STYLE]}
+      titleStyle={[styles.flyersScreenTitle, { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       <Pressable style={[styles.quickListBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={onOpenShoppingList}>
@@ -1408,7 +1410,7 @@ function CardScreen({ card, onScanCard }: { card: CardData; onScanCard: (cardNum
     <ScreenWrap
       title={t("screen_card_title")}
       subtitle={t("screen_card_subtitle")}
-      titleStyle={[styles.flyersScreenTitle, HEADLINE_TEXT_STYLE]}
+      titleStyle={[styles.flyersScreenTitle, { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       <Pressable style={[styles.scanBtn, { backgroundColor: palette.card, borderColor: palette.green }]} onPress={() => void handleOpenScanner()}>
@@ -1514,7 +1516,7 @@ function PriceCheckScreen({
     <ScreenWrap
       title={t("screen_prices_title")}
       subtitle={t("screen_prices_subtitle")}
-      titleStyle={[styles.flyersScreenTitle, HEADLINE_TEXT_STYLE]}
+      titleStyle={[styles.flyersScreenTitle, { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       <Pressable style={[styles.scanBtn, { backgroundColor: palette.card, borderColor: palette.green }]} onPress={() => void handleOpenScanner()}>
@@ -1540,7 +1542,7 @@ function PriceCheckScreen({
         <View style={[styles.priceResultCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <Text style={[styles.priceResultTitle, { color: palette.text }]}>{t("price_result_title")}</Text>
           <Text style={[styles.priceResultName, { color: palette.text }]}>{product.name}</Text>
-          <Text style={styles.priceResultValue}>{`${product.price} ???.`}{product.unit ? ` / ${product.unit}` : ""}</Text>
+          <Text style={styles.priceResultValue}>{`${product.price} ден.`}{product.unit ? ` / ${product.unit}` : ""}</Text>
           <Text style={[styles.priceResultMeta, { color: palette.muted }]}>
             {t("price_barcode_label")}: {product.barcode}
           </Text>
@@ -1590,7 +1592,7 @@ function ShoppingListScreen({
     <ScreenWrap
       title={t("screen_shopping_title")}
       subtitle={t("screen_shopping_subtitle")}
-      titleStyle={[styles.flyersScreenTitle, HEADLINE_TEXT_STYLE]}
+      titleStyle={[styles.flyersScreenTitle, { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       <View style={[styles.shoppingForm, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -1678,7 +1680,7 @@ function NotificationsScreen({ notices }: { notices: Notice[] }) {
     <ScreenWrap
       title={t("screen_notifications_title")}
       subtitle={t("screen_notifications_subtitle")}
-      titleStyle={[styles.flyersScreenTitle, HEADLINE_TEXT_STYLE]}
+      titleStyle={[styles.flyersScreenTitle, { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       {notices.map((notice) => (
@@ -1798,7 +1800,7 @@ function LocationsScreen() {
     <ScreenWrap
       title={t("screen_locations_title")}
       subtitle={t("screen_locations_subtitle")}
-      titleStyle={[styles.flyersScreenTitle, HEADLINE_TEXT_STYLE]}
+      titleStyle={[styles.flyersScreenTitle, { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       <TextInput
@@ -1928,7 +1930,7 @@ function ProfileScreen({
     <ScreenWrap
       title={t("screen_profile_title")}
       subtitle={t("screen_profile_subtitle")}
-      titleStyle={[styles.flyersScreenTitle, HEADLINE_TEXT_STYLE]}
+      titleStyle={[styles.flyersScreenTitle, { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       <InfoCard title={t("name_label")} value={user.name} />
@@ -2051,7 +2053,7 @@ function MoreScreen({
     <ScreenWrap
       title=""
       subtitle={t("screen_more_subtitle")}
-      titleStyle={[styles.flyersScreenTitle, HEADLINE_TEXT_STYLE]}
+      titleStyle={[styles.flyersScreenTitle, { color: HEADLINE_COLOR, textShadowColor: HEADLINE_OUTLINE_COLOR, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       <Pressable style={[styles.loginBtn, { marginTop: 0 }]} onPress={onOpenCard}>
@@ -2130,6 +2132,8 @@ function MainTabs({
   onCheckPrice,
   onUpdateProfile,
   onChangePassword,
+  onRegisterPush,
+  onSendTestPush,
   onRefresh,
   onLogout,
 }: {
@@ -2151,6 +2155,8 @@ function MainTabs({
   onCheckPrice: (barcode: string) => Promise<{ product: ProductPrice | null; error: string | null }>;
   onUpdateProfile: (name: string, email: string) => void;
   onChangePassword: (currentPassword: string, newPassword: string, confirmPassword: string) => void;
+  onRegisterPush: () => void;
+  onSendTestPush: () => void;
   onRefresh: () => void;
   onLogout: () => void;
 }) {
@@ -2559,16 +2565,6 @@ export default function App() {
       setLoggedIn(true);
       await loadData(res.token);
     } catch {
-      if (email.toLowerCase() === "korisnik@zito.mk" && password === "password123") {
-        setAuthToken("");
-        setUser(fallbackUser);
-        setFlyers(fallbackFlyers);
-        setNotices(fallbackNotices);
-        setCard(fallbackCard);
-        setPushState(t("state_offline_demo"));
-        setLoggedIn(true);
-        return;
-      }
       setAuthError(t("auth_invalid_login"));
     }
   };
@@ -2613,6 +2609,71 @@ export default function App() {
       await Linking.openURL(oauthStartUrl);
     } catch {
       setAuthError(t("auth_oauth_start_failed"));
+    }
+  };
+
+  const handlePushRegister = async () => {
+    try {
+      const token = await registerForPush(t);
+      if (token.startsWith("ExponentPushToken[")) {
+        setPushToken(token);
+        setPushState(t("state_push_token_generated"));
+        if (authToken) {
+          await apiPost(apiBase, "/push/register", { token }, authToken);
+        }
+      } else {
+        setPushState(token);
+      }
+    } catch (error) {
+      const apiError = extractApiErrorMessage(error);
+      const errorMessage = error instanceof Error ? error.message : "";
+      if (errorMessage.includes("missing_eas_project_id")) {
+        setPushState(t("push_missing_project_id"));
+        return;
+      }
+      if (errorMessage.includes("missing_firebase_config")) {
+        setPushState(t("push_missing_firebase"));
+        return;
+      }
+      if (apiError) {
+        setPushState(`${t("state_push_error")} (${apiError})`);
+        return;
+      }
+      setPushState(t("state_push_error"));
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    if (!authToken) return;
+    if (!pushToken || !pushToken.startsWith("ExponentPushToken[")) {
+      setPushState(t("state_push_register_first"));
+      return;
+    }
+    try {
+      await apiPost(
+        apiBase,
+        "/push/test",
+        { token: pushToken, title: "Zito aplikacija", body: "Test push notifikacija." },
+        authToken,
+      );
+      await loadData(authToken);
+      setPushState(t("state_push_test_sent"));
+    } catch (error) {
+      const apiError = extractApiErrorMessage(error);
+      const errorMessage = error instanceof Error ? error.message : "";
+      if (errorMessage.includes("missing_eas_project_id")) {
+        setPushState(t("push_missing_project_id"));
+        return;
+      }
+      if (errorMessage.includes("missing_firebase_config")) {
+        setPushState(t("push_missing_firebase"));
+        return;
+      }
+      if (apiError) {
+        setPushState(`${t("state_push_error")} (${apiError})`);
+        return;
+      }
+      setPushState(t("state_push_error"));
     }
   };
 
@@ -2821,6 +2882,8 @@ export default function App() {
                 onCheckPrice={handleCheckPrice}
                 onUpdateProfile={handleUpdateProfile}
                 onChangePassword={handleChangePassword}
+                onRegisterPush={handlePushRegister}
+                onSendTestPush={handleSendTestPush}
                 onRefresh={handleRefresh}
                 onLogout={handleLogout}
               />
@@ -3560,5 +3623,4 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
-
 
