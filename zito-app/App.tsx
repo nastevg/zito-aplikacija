@@ -27,6 +27,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import RNBlobUtil from "react-native-blob-util";
 import Pdf from "react-native-pdf";
 
 type RootStackParamList = {
@@ -1225,13 +1226,53 @@ function HomeScreen({
   );
   const flyersListRef = useRef<FlatList<CurrentFlyerMock> | null>(null);
   const [activePdfUrl, setActivePdfUrl] = useState("");
+  const [cachedPdfUrls, setCachedPdfUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const cachePdfFiles = async () => {
+      const pdfUrls = Array.from(
+        new Set(
+          currentFlyersData
+            .map((item) => normalizeExternalFlyerUrl(item.imageUrl))
+            .filter((url) => Boolean(url) && /\.pdf($|\?)/i.test(String(url))),
+        ),
+      ) as string[];
+      if (!pdfUrls.length) return;
+
+      const nextEntries: Record<string, string> = {};
+      for (const url of pdfUrls) {
+        if (cachedPdfUrls[url]) continue;
+        try {
+          const localPath = getPdfCacheUri(url);
+          if (!localPath) continue;
+          const exists = await RNBlobUtil.fs.exists(localPath);
+          if (!exists) {
+            await RNBlobUtil.config({ path: localPath, fileCache: true }).fetch("GET", url);
+          }
+          nextEntries[url] = `file://${localPath}`;
+        } catch {
+          // Keep remote URL fallback.
+        }
+      }
+
+      if (!cancelled && Object.keys(nextEntries).length > 0) {
+        setCachedPdfUrls((prev) => ({ ...prev, ...nextEntries }));
+      }
+    };
+
+    void cachePdfFiles();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentFlyersData, cachedPdfUrls]);
 
   const openCurrentFlyer = async (item: CurrentFlyerMock) => {
     const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
     if (!targetUrl) return;
     const isPdf = Boolean(item.isPdf || /\.pdf($|\?)/i.test(targetUrl));
     if (isPdf) {
-      setActivePdfUrl(targetUrl);
+      setActivePdfUrl(cachedPdfUrls[targetUrl] || targetUrl);
       return;
     }
     try {
@@ -1301,6 +1342,7 @@ function HomeScreen({
             renderItem={({ item }) => {
               const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
               const isPdf = Boolean(item.isPdf || (targetUrl && /\.pdf($|\?)/i.test(targetUrl)));
+              const pdfUri = targetUrl ? cachedPdfUrls[targetUrl] || targetUrl : "";
               const imageSource = item.image ? item.image : targetUrl ? { uri: targetUrl } : null;
               return (
                 <Pressable
@@ -1310,7 +1352,7 @@ function HomeScreen({
                   {isPdf && targetUrl ? (
                     <View style={styles.currentFlyerPdfCard}>
                       <Pdf
-                        source={{ uri: targetUrl, cache: true }}
+                        source={{ uri: pdfUri, cache: true }}
                         style={styles.currentFlyerPdfWebView}
                         page={1}
                         singlePage
@@ -1412,6 +1454,21 @@ function normalizeExternalFlyerUrl(value: string | undefined) {
   if (/^https?:\/\//i.test(raw)) return raw;
   if (/^www\./i.test(raw)) return `https://${raw}`;
   return "";
+}
+
+function hashText(input: string) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function getPdfCacheUri(remoteUrl: string) {
+  const baseDir = RNBlobUtil.fs.dirs.CacheDir || "";
+  if (!baseDir) return "";
+  return `${baseDir}/flyer-pdf-${hashText(remoteUrl)}.pdf`;
 }
 
 function FlyersScreen({ flyers, onOpenShoppingList }: { flyers: Flyer[]; onOpenShoppingList: () => void }) {
