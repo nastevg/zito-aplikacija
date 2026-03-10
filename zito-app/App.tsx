@@ -202,6 +202,7 @@ type BestDealItem = {
   price: string;
   image?: number;
   imageUrl?: string;
+  linkUrl?: string;
 };
 
 const currentFlyersMock: CurrentFlyerMock[] = [
@@ -212,21 +213,6 @@ const currentFlyersMock: CurrentFlyerMock[] = [
   { id: "c5", title: "Тест леток 5", price: "", image: require("./assets/images/letoci/OIP (4).webp") },
   { id: "c6", title: "Тест леток 6", price: "", image: require("./assets/images/letoci/tip-4-566x800.png") },
 ];
-
-const akcijaImages = [
-  require("./assets/images/akcii/OIP.webp"),
-  require("./assets/images/akcii/OIP (1).webp"),
-  require("./assets/images/akcii/OIP (2).webp"),
-  require("./assets/images/akcii/OIP (3).webp"),
-  require("./assets/images/akcii/OIP (5).webp"),
-] as const;
-
-const bestDealsMock: BestDealItem[] = Array.from({ length: 16 }, (_, index) => ({
-  id: `b${index + 1}`,
-  title: `Тест акција ${index + 1}`,
-  price: "",
-  image: akcijaImages[index % akcijaImages.length],
-}));
 
 const colors = {
   bg: "#E0F2DF",
@@ -1249,14 +1235,13 @@ function HomeScreen({
   const [pdfLoadProgress, setPdfLoadProgress] = useState(0);
   const [pdfLoadError, setPdfLoadError] = useState("");
   const [cachedPdfUrls, setCachedPdfUrls] = useState<Record<string, string>>({});
-  const bestDealsData = bestDeals.length ? bestDeals : bestDealsMock;
   const bestDealRows = useMemo(() => {
     const rows: BestDealItem[][] = [];
-    for (let i = 0; i < bestDealsData.length; i += 3) {
-      rows.push(bestDealsData.slice(i, i + 3));
+    for (let i = 0; i < bestDeals.length; i += 3) {
+      rows.push(bestDeals.slice(i, i + 3));
     }
     return rows;
-  }, [bestDealsData]);
+  }, [bestDeals]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1300,29 +1285,28 @@ function HomeScreen({
   const openCurrentFlyer = async (item: CurrentFlyerMock) => {
     const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
     if (!targetUrl) return;
+    const safeUrl = encodeURI(targetUrl);
     const isPdf = Boolean(item.isPdf || /\.pdf($|\?)/i.test(targetUrl));
     if (isPdf) {
       setPdfLoadProgress(0);
       setPdfLoadError("");
-      setActivePdfUrl(cachedPdfUrls[targetUrl] || targetUrl);
+      setActivePdfUrl(cachedPdfUrls[targetUrl] || safeUrl);
       return;
     }
     try {
-      const canOpen = await Linking.canOpenURL(targetUrl);
+      const canOpen = await Linking.canOpenURL(safeUrl);
       if (!canOpen) return;
-      await Linking.openURL(targetUrl);
+      await Linking.openURL(safeUrl);
     } catch {
       // Ignore URL open failures.
     }
   };
 
   const openBestDeal = async (item: BestDealItem) => {
-    const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
+    const targetUrl = normalizeExternalFlyerUrl(item.linkUrl || item.imageUrl);
     if (!targetUrl) return;
     try {
-      const canOpen = await Linking.canOpenURL(targetUrl);
-      if (!canOpen) return;
-      await Linking.openURL(targetUrl);
+      await Linking.openURL(encodeURI(targetUrl));
     } catch {
       // Ignore URL open failures.
     }
@@ -1449,7 +1433,7 @@ function HomeScreen({
                   <Pressable
                     key={item.id}
                     style={[styles.bestDealCard, { backgroundColor: palette.card }]}
-                    onPress={item.imageUrl ? () => void openBestDeal(item) : undefined}
+                    onPress={() => void openBestDeal(item)}
                   >
                     {item.image ? (
                       <Image source={item.image} style={styles.bestDealImage} resizeMode="cover" />
@@ -1561,6 +1545,8 @@ function normalizeExternalFlyerUrl(value: string | undefined) {
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw)) return raw;
   if (/^www\./i.test(raw)) return `https://${raw}`;
+  if (raw.startsWith("/")) return `${DEFAULT_API_BASE}${raw}`;
+  if (/^cms\//i.test(raw)) return `${DEFAULT_API_BASE}/${raw}`;
   return "";
 }
 
@@ -2792,7 +2778,7 @@ export default function App() {
   const [user, setUser] = useState<User>(fallbackUser);
   const [flyers, setFlyers] = useState<Flyer[]>(fallbackFlyers);
   const [currentFlyers, setCurrentFlyers] = useState<CurrentFlyerMock[]>([]);
-  const [bestDeals, setBestDeals] = useState<BestDealItem[]>(bestDealsMock);
+  const [bestDeals, setBestDeals] = useState<BestDealItem[]>([]);
   const [homeTopItem, setHomeTopItem] = useState<HomeTopItem | null>(null);
   const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
   const [card, setCard] = useState<CardData>(fallbackCard);
@@ -2898,7 +2884,8 @@ export default function App() {
           id: String(item.id || ""),
           title: String(item.label || item.file || "Deal"),
           price: "",
-          imageUrl: String(item.imageUrl || ""),
+          imageUrl: String(item.imageUrl || item.thumbnailUrl || ""),
+          linkUrl: String(item.imageUrl || item.thumbnailUrl || item.file || ""),
         }))
       : [];
     setUser(nextUser);
@@ -3204,7 +3191,7 @@ export default function App() {
     setUser(fallbackUser);
     setFlyers(fallbackFlyers);
     setCurrentFlyers([]);
-    setBestDeals(bestDealsMock);
+    setBestDeals([]);
     setHomeTopItem(null);
     setNotices(fallbackNotices);
     setCard(fallbackCard);
