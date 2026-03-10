@@ -196,11 +196,12 @@ type CurrentFlyerMock = {
   isPdf?: boolean;
 };
 
-type BestDealMock = {
+type BestDealItem = {
   id: string;
   title: string;
   price: string;
-  image: number;
+  image?: number;
+  imageUrl?: string;
 };
 
 const currentFlyersMock: CurrentFlyerMock[] = [
@@ -220,7 +221,7 @@ const akcijaImages = [
   require("./assets/images/akcii/OIP (5).webp"),
 ] as const;
 
-const bestDealsMock: BestDealMock[] = Array.from({ length: 16 }, (_, index) => ({
+const bestDealsMock: BestDealItem[] = Array.from({ length: 16 }, (_, index) => ({
   id: `b${index + 1}`,
   title: `Тест акција ${index + 1}`,
   price: "",
@@ -1217,13 +1218,13 @@ function BarcodeStrip({ value, height = 64 }: { value: string; height?: number }
 }
 
 function HomeScreen({
-  user,
   currentFlyers,
+  bestDeals,
   homeTopItem,
   onOpenShoppingList,
 }: {
-  user: User;
   currentFlyers: CurrentFlyerMock[];
+  bestDeals: BestDealItem[];
   homeTopItem: HomeTopItem | null;
   onOpenShoppingList: () => void;
 }) {
@@ -1248,6 +1249,14 @@ function HomeScreen({
   const [pdfLoadProgress, setPdfLoadProgress] = useState(0);
   const [pdfLoadError, setPdfLoadError] = useState("");
   const [cachedPdfUrls, setCachedPdfUrls] = useState<Record<string, string>>({});
+  const bestDealsData = bestDeals.length ? bestDeals : bestDealsMock;
+  const bestDealRows = useMemo(() => {
+    const rows: BestDealItem[][] = [];
+    for (let i = 0; i < bestDealsData.length; i += 3) {
+      rows.push(bestDealsData.slice(i, i + 3));
+    }
+    return rows;
+  }, [bestDealsData]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1307,6 +1316,18 @@ function HomeScreen({
     }
   };
 
+  const openBestDeal = async (item: BestDealItem) => {
+    const targetUrl = normalizeExternalFlyerUrl(item.imageUrl);
+    if (!targetUrl) return;
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      if (!canOpen) return;
+      await Linking.openURL(targetUrl);
+    } catch {
+      // Ignore URL open failures.
+    }
+  };
+
   useEffect(() => {
     const targetIndex = baseFlyersCount;
     const timer = setTimeout(() => {
@@ -1328,7 +1349,11 @@ function HomeScreen({
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <View style={[styles.homeFixedWrap, { paddingBottom: insets.bottom + 8 }]}> 
+      <ScrollView
+        contentContainerStyle={[styles.homeScrollContent, { paddingBottom: insets.bottom + 84 }]}
+        showsVerticalScrollIndicator={false}
+      >
+      <View style={styles.homeFixedWrap}>
         <Pressable style={[styles.themeToggleBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={toggleTheme}>
           <Ionicons
             name={mode === "light" ? "moon-outline" : "sunny-outline"}
@@ -1415,37 +1440,34 @@ function HomeScreen({
           />
         </View>
 
-        <View style={[styles.showcaseSection, styles.bestDealsSection, { height: showcaseSectionHeight, backgroundColor: palette.card, borderColor: palette.border }]}>
+        <View style={[styles.showcaseSection, styles.bestDealsSection, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <OutlinedHeader text={t("home_best_deals")} />
-          <FlatList
-            style={styles.bestDealsScroll}
-            data={bestDealsMock}
-            keyExtractor={(item) => item.id}
-            numColumns={3}
-            nestedScrollEnabled
-            removeClippedSubviews
-            initialNumToRender={9}
-            maxToRenderPerBatch={9}
-            windowSize={7}
-            contentContainerStyle={styles.bestDealsGrid}
-            columnWrapperStyle={styles.bestDealsRow}
-            renderItem={({ item }) => (
-              <View style={[styles.bestDealCard, { backgroundColor: palette.card }]}>
-                <Image source={item.image} style={styles.bestDealImage} resizeMode="cover" />
+          <View style={styles.bestDealsGrid}>
+            {bestDealRows.map((row, idx) => (
+              <View key={`best-row-${idx}`} style={styles.bestDealsRow}>
+                {row.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={[styles.bestDealCard, { backgroundColor: palette.card }]}
+                    onPress={item.imageUrl ? () => void openBestDeal(item) : undefined}
+                  >
+                    {item.image ? (
+                      <Image source={item.image} style={styles.bestDealImage} resizeMode="cover" />
+                    ) : item.imageUrl ? (
+                      <Image source={{ uri: item.imageUrl }} style={styles.bestDealImage} resizeMode="cover" />
+                    ) : null}
+                  </Pressable>
+                ))}
               </View>
-            )}
-          />
-        </View>
-
-        <View style={styles.infoRow}>
-          <InfoCard title={t("points")} value={`${user.points}`} />
-          <InfoCard title={t("coupons")} value={`${user.coupons} ${t("active_suffix")}`} />
+            ))}
+          </View>
         </View>
         <Pressable style={[styles.quickListBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={onOpenShoppingList}>
           <Ionicons name="basket-outline" size={18} color={colors.green} />
           <Text style={styles.quickListBtnText}>{t("open_shopping_list")}</Text>
         </Pressable>
       </View>
+      </ScrollView>
       <Modal visible={Boolean(activePdfUrl)} animationType="slide" transparent={false} onRequestClose={() => setActivePdfUrl("")}>
         <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
           <View style={[styles.pdfModalHeader, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -2491,6 +2513,7 @@ function MainTabs({
   user,
   flyers,
   currentFlyers,
+  bestDeals,
   homeTopItem,
   notices,
   card,
@@ -2516,6 +2539,7 @@ function MainTabs({
   user: User;
   flyers: Flyer[];
   currentFlyers: CurrentFlyerMock[];
+  bestDeals: BestDealItem[];
   homeTopItem: HomeTopItem | null;
   notices: Notice[];
   card: CardData;
@@ -2627,8 +2651,8 @@ function MainTabs({
       <Tab.Screen name="Home" options={{ title: t("tab_home") }}>
         {({ navigation }) => (
           <HomeScreen
-            user={user}
             currentFlyers={currentFlyers}
+            bestDeals={bestDeals}
             homeTopItem={homeTopItem}
             onOpenShoppingList={() => navigation.navigate("Shopping")}
           />
@@ -2768,6 +2792,7 @@ export default function App() {
   const [user, setUser] = useState<User>(fallbackUser);
   const [flyers, setFlyers] = useState<Flyer[]>(fallbackFlyers);
   const [currentFlyers, setCurrentFlyers] = useState<CurrentFlyerMock[]>([]);
+  const [bestDeals, setBestDeals] = useState<BestDealItem[]>(bestDealsMock);
   const [homeTopItem, setHomeTopItem] = useState<HomeTopItem | null>(null);
   const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
   const [card, setCard] = useState<CardData>(fallbackCard);
@@ -2868,9 +2893,18 @@ export default function App() {
           isPdf: Boolean(item.isPdf),
         }))
       : [];
+    const nextBestDeals = Array.isArray(nextApkGallery?.bestDeals)
+      ? nextApkGallery.bestDeals.map((item) => ({
+          id: String(item.id || ""),
+          title: String(item.label || item.file || "Deal"),
+          price: "",
+          imageUrl: String(item.imageUrl || ""),
+        }))
+      : [];
     setUser(nextUser);
     setFlyers(nextFlyers);
     setCurrentFlyers(nextCurrentFlyers);
+    setBestDeals(nextBestDeals);
     setHomeTopItem(nextHomeTop?.item ? nextHomeTop.item : null);
     setNotices(nextNotices);
     setCard(nextCard);
@@ -3170,6 +3204,7 @@ export default function App() {
     setUser(fallbackUser);
     setFlyers(fallbackFlyers);
     setCurrentFlyers([]);
+    setBestDeals(bestDealsMock);
     setHomeTopItem(null);
     setNotices(fallbackNotices);
     setCard(fallbackCard);
@@ -3273,6 +3308,7 @@ export default function App() {
                 user={user}
                 flyers={flyers}
                 currentFlyers={currentFlyers}
+                bestDeals={bestDeals}
                 homeTopItem={homeTopItem}
                 notices={notices}
                 card={card}
@@ -3629,10 +3665,12 @@ const styles = StyleSheet.create({
     color: colors.green,
   },
   homeFixedWrap: {
-    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 6,
     gap: 10,
+  },
+  homeScrollContent: {
+    paddingTop: 0,
   },
   themeToggleBtn: {
     position: "absolute",
@@ -3815,9 +3853,6 @@ const styles = StyleSheet.create({
   bestDealsSection: {
     minHeight: 180,
   },
-  bestDealsScroll: {
-    flex: 1,
-  },
   bestDealsGrid: {
     paddingVertical: 10,
     paddingHorizontal: 10,
@@ -3825,6 +3860,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bestDealsRow: {
+    flexDirection: "row",
     justifyContent: "space-between",
     gap: 8,
   },
