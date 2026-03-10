@@ -140,10 +140,19 @@
     </div>
 
     <div class="card">
-      <h3>Add Notification</h3>
-      <input id="noteTitle" placeholder="Title" />
-      <input id="noteBody" placeholder="Body" />
-      <button onclick="addNotification()">Save Notification</button>
+      <h3>Notifications</h3>
+      <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 10px; margin-bottom: 10px">
+        <strong>Text message</strong>
+        <input id="noteTitle" placeholder="Title" />
+        <input id="noteBody" placeholder="Body" />
+        <button onclick="addNotification()">Save text notification</button>
+      </div>
+      <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 10px">
+        <strong>Upload image/PDF</strong>
+        <input id="noteMediaTitle" placeholder="Title (optional)" />
+        <input id="noteMediaBody" placeholder="Body (optional)" />
+        <button type="button" onclick="openNotificationUpload()">Upload file</button>
+      </div>
     </div>
 
     <div class="card">
@@ -196,6 +205,7 @@
 
     <pre id="out">Ready.</pre>
     <input id="galleryFileInput" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display: none" />
+    <input id="notificationFileInput" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display: none" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <script>
@@ -209,6 +219,7 @@
       const apkBestDeals = document.getElementById("apkBestDeals");
       const tokenInput = document.getElementById("token");
       const galleryFileInput = document.getElementById("galleryFileInput");
+      const notificationFileInput = document.getElementById("notificationFileInput");
       let pendingUploadTarget = null;
       if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -314,7 +325,53 @@
           title: document.getElementById("noteTitle").value,
           body: document.getElementById("noteBody").value,
         });
-        if (ok) await loadNotifications();
+        if (ok) {
+          document.getElementById("noteTitle").value = "";
+          document.getElementById("noteBody").value = "";
+          await loadNotifications();
+        }
+      }
+
+      function openNotificationUpload() {
+        notificationFileInput.click();
+      }
+
+      async function handleNotificationFilePicked(event) {
+        try {
+          const file = event?.target?.files?.[0];
+          if (!file) return;
+          const mimeType = String(file.type || "").toLowerCase();
+          const ext = String(file.name || "").toLowerCase().split(".").pop() || "";
+          const allowedMime = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
+          const allowedExt = ["png", "jpg", "jpeg", "webp", "pdf"];
+          if (!allowedMime.includes(mimeType) && !allowedExt.includes(ext)) {
+            out.textContent = "Only PNG/JPG/WEBP/PDF files are supported.";
+            return;
+          }
+
+          const dataBase64 = await fileToBase64(file);
+          const thumbnailBase64 = await buildPdfThumbnailBase64(file);
+          const title = document.getElementById("noteMediaTitle").value.trim();
+          const body = document.getElementById("noteMediaBody").value.trim();
+          const ok = await callUpload("/admin/notifications/upload", {
+            title,
+            body,
+            fileName: file.name,
+            targetFile: `${Date.now()}-${file.name}`,
+            mimeType,
+            dataBase64,
+            thumbnailBase64,
+          });
+          if (ok) {
+            document.getElementById("noteMediaTitle").value = "";
+            document.getElementById("noteMediaBody").value = "";
+            await loadNotifications();
+          }
+        } catch (error) {
+          out.textContent = String(error?.message || error || "Notification upload failed.");
+        } finally {
+          notificationFileInput.value = "";
+        }
       }
 
       async function sendPush() {
@@ -354,7 +411,10 @@
             <div class="row">
               <div>
                 <div><strong>${escapeHtml(x.title)}</strong></div>
-                <div>${escapeHtml(x.body)}</div>
+                ${x.body ? `<div>${escapeHtml(x.body)}</div>` : ""}
+                ${x.mediaUrl ? `<div class="meta">Media: <a href="${escapeHtml(x.mediaUrl)}" target="_blank" rel="noopener noreferrer">Open file</a></div>` : ""}
+                ${x.thumbnailUrl ? `<div class="meta">Thumbnail: <a href="${escapeHtml(x.thumbnailUrl)}" target="_blank" rel="noopener noreferrer">Open thumbnail</a></div>` : ""}
+                <div class="meta">Kind: ${escapeHtml(x.kind || "text")}</div>
                 <div class="meta">ID: ${escapeHtml(x.id)}</div>
               </div>
               <button class="btn-danger" onclick="deleteNotification('${escapeHtml(x.id)}')">Delete</button>
@@ -555,6 +615,7 @@
         tokenInput.addEventListener("change", saveToken);
         tokenInput.addEventListener("blur", saveToken);
         galleryFileInput.addEventListener("change", handleGalleryFilePicked);
+        notificationFileInput.addEventListener("change", handleNotificationFilePicked);
         await loadFlyers();
         await loadNotifications();
         await loadPrices();

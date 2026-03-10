@@ -135,7 +135,9 @@ function createSqliteStore(filePath) {
       return all("SELECT id, title, price, image FROM flyers ORDER BY id DESC");
     },
     async listNotifications() {
-      return all("SELECT id, title, body, created_at AS createdAt FROM notifications ORDER BY id DESC");
+      return all(
+        "SELECT id, title, body, created_at AS createdAt, kind, media_url AS mediaUrl, thumbnail_url AS thumbnailUrl FROM notifications ORDER BY id DESC",
+      );
     },
     async listProductPrices(limit = 500) {
       const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 500));
@@ -190,12 +192,18 @@ function createSqliteStore(filePath) {
       return flyer;
     },
     async addNotification(notice) {
-      await run("INSERT INTO notifications (id, title, body, created_at) VALUES (?, ?, ?, ?)", [
-        notice.id,
-        notice.title,
-        notice.body,
-        notice.createdAt,
-      ]);
+      await run(
+        "INSERT INTO notifications (id, title, body, created_at, kind, media_url, thumbnail_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          notice.id,
+          notice.title,
+          notice.body,
+          notice.createdAt,
+          notice.kind || "text",
+          notice.mediaUrl || "",
+          notice.thumbnailUrl || "",
+        ],
+      );
       return notice;
     },
     async deleteFlyerById(id) {
@@ -303,7 +311,9 @@ function createPgStore(connectionString) {
       return r.rows;
     },
     async listNotifications() {
-      const r = await q("SELECT id, title, body, created_at AS \"createdAt\" FROM notifications ORDER BY id DESC");
+      const r = await q(
+        'SELECT id, title, body, created_at AS "createdAt", kind, media_url AS "mediaUrl", thumbnail_url AS "thumbnailUrl" FROM notifications ORDER BY id DESC',
+      );
       return r.rows;
     },
     async listProductPrices(limit = 500) {
@@ -354,12 +364,18 @@ function createPgStore(connectionString) {
       return flyer;
     },
     async addNotification(notice) {
-      await q("INSERT INTO notifications (id, title, body, created_at) VALUES ($1, $2, $3, $4)", [
-        notice.id,
-        notice.title,
-        notice.body,
-        notice.createdAt,
-      ]);
+      await q(
+        "INSERT INTO notifications (id, title, body, created_at, kind, media_url, thumbnail_url) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [
+          notice.id,
+          notice.title,
+          notice.body,
+          notice.createdAt,
+          notice.kind || "text",
+          notice.mediaUrl || "",
+          notice.thumbnailUrl || "",
+        ],
+      );
       return notice;
     },
     async deleteFlyerById(id) {

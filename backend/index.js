@@ -54,6 +54,7 @@ const ASSET_EXT_TO_MIME = {
   ".webp": "image/webp",
   ".pdf": "application/pdf",
 };
+const NOTIFICATION_ASSET_GROUP = "notifications";
 
 app.use(cors());
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
@@ -172,6 +173,29 @@ function detectAssetExtFromBuffer(buffer) {
     return ".pdf";
   }
   return "";
+}
+
+function normalizeNoticeKind(input) {
+  const kind = String(input || "")
+    .trim()
+    .toLowerCase();
+  if (kind === "image" || kind === "pdf" || kind === "text") return kind;
+  return "text";
+}
+
+function extractNotificationAssetFileFromUrl(urlValue) {
+  const raw = String(urlValue || "").trim();
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    const prefix = "/cms/notification-asset/";
+    const idx = u.pathname.indexOf(prefix);
+    if (idx < 0) return "";
+    const encoded = u.pathname.slice(idx + prefix.length);
+    return path.basename(decodeURIComponent(encoded));
+  } catch (_error) {
+    return "";
+  }
 }
 
 async function downloadImageFromUrl(imageUrl) {
@@ -354,6 +378,19 @@ app.get("/cms/apk-asset/:group/:file", async (req, res) => {
   if (!fs.existsSync(fullPath)) return res.status(404).send("Not found");
 
   return res.sendFile(fullPath);
+});
+
+app.get("/cms/notification-asset/:file", async (req, res) => {
+  const file = path.basename(String(req.params?.file || ""));
+  if (!file || !/\.(png|jpe?g|webp|pdf)$/i.test(file)) return res.status(400).send("Invalid file");
+
+  const dbAsset = await db.getCmsAsset(NOTIFICATION_ASSET_GROUP, file);
+  if (!dbAsset || !dbAsset.data) return res.status(404).send("Not found");
+
+  const ext = ASSET_URL_EXT_TO_EXT[path.extname(file).toLowerCase()] || "";
+  const fallbackMime = ASSET_EXT_TO_MIME[ext] || "application/octet-stream";
+  res.setHeader("Content-Type", dbAsset.mimeType || fallbackMime);
+  return res.send(dbAsset.data);
 });
 
 async function buildApkGalleryPayload(req) {
@@ -855,16 +892,92 @@ app.delete("/admin/flyers/:id", requireAdmin, async (req, res) => {
 
 app.post("/admin/notifications", requireAdmin, (req, res) => {
   const { title, body } = req.body || {};
-  if (!title || !body) return res.status(400).json({ error: "title and body are required" });
+  const normalizedTitle = String(title || "").trim();
+  const normalizedBody = String(body || "").trim();
+  if (!normalizedTitle || !normalizedBody) return res.status(400).json({ error: "title and body are required" });
   const notice = {
     id: `n${Date.now()}`,
-    title: String(title),
-    body: String(body),
+    title: normalizedTitle,
+    body: normalizedBody,
     createdAt: "now",
+    kind: "text",
+    mediaUrl: "",
+    thumbnailUrl: "",
   };
   db.addNotification(notice)
     .then((row) => res.json(row))
     .catch((error) => res.status(500).json({ error: String(error) }));
+});
+
+app.post("/admin/notifications/upload", requireAdmin, async (req, res) => {
+  const rawName = sanitizeAssetFilename(req.body?.targetFile || req.body?.fileName || "");
+  if (!rawName) return res.status(400).json({ error: "fileName is required" });
+
+  const mimeType = String(req.body?.mimeType || "")
+    .trim()
+    .toLowerCase();
+  const extFromMime = ASSET_MIME_TO_EXT[mimeType] || "";
+  const extFromName = ASSET_URL_EXT_TO_EXT[path.extname(rawName).toLowerCase()] || "";
+  const buffer = decodeBase64Image(req.body?.dataBase64);
+  if (!buffer || buffer.length === 0) return res.status(400).json({ error: "File payload is empty" });
+  if (buffer.length > MAX_UPLOAD_SIZE_BYTES) return res.status(400).json({ error: "File is too large (max 50MB)" });
+
+  const extFromBuffer = detectAssetExtFromBuffer(buffer);
+  const ext = extFromMime || extFromName || extFromBuffer;
+  if (!ext || (ext !== ".png" && ext !== ".jpg" && ext !== ".webp" && ext !== ".pdf")) {
+    return res.status(400).json({ error: "Only png, jpg, webp, pdf are supported" });
+  }
+
+  const finalName = rawName.toLowerCase().endsWith(ext) ? rawName : `${rawName}${ext}`;
+  const mimeTypeFromExt = ASSET_EXT_TO_MIME[ext] || "application/octet-stream";
+  await db.upsertCmsAsset({
+    groupName: NOTIFICATION_ASSET_GROUP,
+    fileName: finalName,
+    mimeType: mimeTypeFromExt,
+    data: buffer,
+    updatedAt: new Date().toISOString(),
+  });
+
+  let thumbnailUrl = "";
+  if (ext === ".pdf") {
+    const thumbRaw = String(req.body?.thumbnailBase64 || "").trim();
+    if (thumbRaw) {
+      try {
+        const thumbBuffer = decodeBase64Image(thumbRaw);
+        if (thumbBuffer && thumbBuffer.length > 0 && thumbBuffer.length <= 5 * 1024 * 1024) {
+          const thumbFileName = `${finalName}.thumb.jpg`;
+          await db.upsertCmsAsset({
+            groupName: NOTIFICATION_ASSET_GROUP,
+            fileName: thumbFileName,
+            mimeType: "image/jpeg",
+            data: thumbBuffer,
+            updatedAt: new Date().toISOString(),
+          });
+          thumbnailUrl = `${getBackendBaseUrl(req)}/cms/notification-asset/${encodeURIComponent(thumbFileName)}`;
+        }
+      } catch (_error) {
+        thumbnailUrl = "";
+      }
+    }
+  }
+
+  const mediaUrl = `${getBackendBaseUrl(req)}/cms/notification-asset/${encodeURIComponent(finalName)}`;
+  const notice = {
+    id: `n${Date.now()}`,
+    title: String(req.body?.title || "").trim() || "Нова нотификација",
+    body: String(req.body?.body || "").trim(),
+    createdAt: "now",
+    kind: normalizeNoticeKind(ext === ".pdf" ? "pdf" : "image"),
+    mediaUrl,
+    thumbnailUrl,
+  };
+
+  try {
+    const saved = await db.addNotification(notice);
+    return res.json({ ...saved, file: finalName, bytes: buffer.length });
+  } catch (error) {
+    return res.status(500).json({ error: String(error) });
+  }
 });
 
 app.get("/admin/notifications", requireAdmin, async (_req, res) => {
@@ -880,9 +993,23 @@ app.delete("/admin/notifications/:id", requireAdmin, async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "id is required" });
   try {
+    const rows = await db.listNotifications();
+    const target = rows.find((row) => String(row.id) === id);
     const deleted = await db.deleteNotificationById(id);
     if (!deleted) return res.status(404).json({ error: "Notification not found" });
-    return res.json({ ok: true, id });
+
+    const mediaFile = extractNotificationAssetFileFromUrl(target?.mediaUrl);
+    const thumbFile = extractNotificationAssetFileFromUrl(target?.thumbnailUrl);
+    let deletedAsset = false;
+    let deletedThumbnail = false;
+    if (mediaFile) {
+      deletedAsset = await db.deleteCmsAsset(NOTIFICATION_ASSET_GROUP, mediaFile);
+    }
+    if (thumbFile) {
+      deletedThumbnail = await db.deleteCmsAsset(NOTIFICATION_ASSET_GROUP, thumbFile);
+    }
+
+    return res.json({ ok: true, id, deletedAsset, deletedThumbnail });
   } catch (error) {
     return res.status(500).json({ error: String(error) });
   }

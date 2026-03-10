@@ -68,6 +68,9 @@ type Notice = {
   title: string;
   body: string;
   createdAt: string;
+  kind?: "text" | "image" | "pdf";
+  mediaUrl?: string;
+  thumbnailUrl?: string;
 };
 
 type CardData = {
@@ -1919,8 +1922,18 @@ function ShoppingListScreen({
 }
 
 function NotificationsScreen({ notices }: { notices: Notice[] }) {
-  const { palette, mode } = useAppTheme();
+  const { palette } = useAppTheme();
   const { t } = useI18n();
+  const [activePdfUrl, setActivePdfUrl] = useState("");
+  const [pdfLoadProgress, setPdfLoadProgress] = useState(0);
+  const [pdfLoadError, setPdfLoadError] = useState("");
+
+  const openNoticePdf = (url: string) => {
+    setPdfLoadProgress(0);
+    setPdfLoadError("");
+    setActivePdfUrl(url);
+  };
+
   return (
     <ScreenWrap
       title={t("screen_notifications_title")}
@@ -1929,12 +1942,78 @@ function NotificationsScreen({ notices }: { notices: Notice[] }) {
       subtitleStyle={styles.flyersScreenSubtitle}
     >
       {notices.map((notice) => (
-        <View key={notice.id} style={styles.notificationCard}>
-          <Text style={styles.notificationTitle}>{notice.title}</Text>
-          <Text style={styles.notificationBody}>{notice.body}</Text>
-          <Text style={styles.notificationTime}>{notice.createdAt}</Text>
+        <View key={notice.id} style={[styles.notificationCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.notificationTitle, { color: palette.text }]}>{notice.title}</Text>
+          {!!notice.body && <Text style={[styles.notificationBody, { color: palette.muted }]}>{notice.body}</Text>}
+          {notice.kind === "image" && normalizeExternalFlyerUrl(notice.mediaUrl) ? (
+            <Image source={{ uri: normalizeExternalFlyerUrl(notice.mediaUrl) }} style={styles.notificationMediaImage} resizeMode="cover" />
+          ) : null}
+          {notice.kind === "pdf" && normalizeExternalFlyerUrl(notice.mediaUrl) ? (
+            <Pressable onPress={() => openNoticePdf(normalizeExternalFlyerUrl(notice.mediaUrl))} style={styles.notificationPdfCard}>
+              {normalizeExternalFlyerUrl(notice.thumbnailUrl) ? (
+                <Image source={{ uri: normalizeExternalFlyerUrl(notice.thumbnailUrl) }} style={styles.notificationMediaImage} resizeMode="cover" />
+              ) : (
+                <View style={styles.notificationPdfFallback}>
+                  <MaterialIcons name="picture-as-pdf" size={30} color="#B31F1F" />
+                  <Text style={styles.notificationPdfFallbackText}>PDF</Text>
+                </View>
+              )}
+              <View style={styles.currentFlyerPdfBadge}>
+                <MaterialIcons name="picture-as-pdf" size={14} color="#FFFFFF" />
+                <Text style={styles.currentFlyerPdfBadgeText}>PDF</Text>
+              </View>
+            </Pressable>
+          ) : null}
+          <Text style={[styles.notificationTime, { color: palette.green }]}>{notice.createdAt}</Text>
         </View>
       ))}
+      <Modal visible={Boolean(activePdfUrl)} animationType="slide" transparent={false} onRequestClose={() => setActivePdfUrl("")}>
+        <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
+          <View style={[styles.pdfModalHeader, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.pdfModalTitle, { color: palette.text }]}>Нотификација PDF</Text>
+            <Pressable
+              style={styles.pdfModalCloseBtn}
+              onPress={() => {
+                setActivePdfUrl("");
+                setPdfLoadProgress(0);
+                setPdfLoadError("");
+              }}
+            >
+              <Ionicons name="close" size={20} color="#FFFFFF" />
+            </Pressable>
+          </View>
+          <View style={[styles.pdfProgressWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.pdfProgressTrack}>
+              <View style={[styles.pdfProgressFill, { width: `${Math.max(0, Math.min(100, pdfLoadProgress))}%` }]} />
+            </View>
+            <Text style={[styles.pdfProgressText, { color: palette.muted }]}>
+              {pdfLoadError ? `Грешка: ${pdfLoadError}` : `Вчитување PDF: ${Math.round(pdfLoadProgress)}%`}
+            </Text>
+          </View>
+          {activePdfUrl ? (
+            <Pdf
+              source={{ uri: activePdfUrl, cache: true }}
+              style={styles.pdfModalWebView}
+              onLoadProgress={(percent: number) => {
+                const next = Number.isFinite(percent) ? percent * 100 : 0;
+                setPdfLoadProgress(Math.max(0, Math.min(100, next)));
+              }}
+              onLoadComplete={() => {
+                setPdfLoadProgress(100);
+                setPdfLoadError("");
+              }}
+              onError={(error) => {
+                const message =
+                  error && typeof error === "object" && "message" in error
+                    ? String((error as { message?: unknown }).message || "PDF не може да се отвори")
+                    : "PDF не може да се отвори";
+                setPdfLoadError(message);
+              }}
+              trustAllCerts={false}
+            />
+          ) : null}
+        </SafeAreaView>
+      </Modal>
     </ScreenWrap>
   );
 }
@@ -3918,6 +3997,37 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: colors.gray,
     fontSize: 15,
+  },
+  notificationMediaImage: {
+    marginTop: 8,
+    width: "100%",
+    height: 170,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    backgroundColor: "#F7F7F7",
+  },
+  notificationPdfCard: {
+    marginTop: 8,
+    width: "100%",
+    height: 170,
+    borderRadius: 10,
+    overflow: "hidden",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    backgroundColor: "#F7F7F7",
+  },
+  notificationPdfFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  notificationPdfFallbackText: {
+    color: "#B31F1F",
+    fontSize: 14,
+    fontWeight: "800",
   },
   notificationTime: {
     marginTop: 8,
