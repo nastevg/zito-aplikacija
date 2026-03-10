@@ -203,9 +203,22 @@
       <div id="apkBestDeals" class="gallery-grid"></div>
     </div>
 
+    <div class="card">
+      <div class="section-head">
+        <h3>Home Top Field (above flyers)</h3>
+        <button onclick="loadHomeTopField()">Refresh</button>
+      </div>
+      <div class="gallery-actions">
+        <button type="button" onclick="openHomeTopUpload()">Upload image</button>
+        <button type="button" class="btn-danger" onclick="deleteHomeTopField()">Delete</button>
+      </div>
+      <div id="homeTopFieldPreview" class="gallery-grid"></div>
+    </div>
+
     <pre id="out">Ready.</pre>
     <input id="galleryFileInput" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display: none" />
     <input id="notificationFileInput" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display: none" />
+    <input id="homeTopFileInput" type="file" accept="image/png,image/jpeg,image/webp" style="display: none" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <script>
@@ -220,6 +233,8 @@
       const tokenInput = document.getElementById("token");
       const galleryFileInput = document.getElementById("galleryFileInput");
       const notificationFileInput = document.getElementById("notificationFileInput");
+      const homeTopFileInput = document.getElementById("homeTopFileInput");
+      const homeTopFieldPreview = document.getElementById("homeTopFieldPreview");
       let pendingUploadTarget = null;
       if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -484,6 +499,59 @@
         renderGallery(apkBestDeals, bestDeals);
       }
 
+      async function loadHomeTopField() {
+        const data = await callGet("/admin/home-top");
+        if (!data) return;
+        const item = data.item || null;
+        if (!item || !item.imageUrl) {
+          homeTopFieldPreview.innerHTML = "<div class='meta'>No field uploaded</div>";
+          return;
+        }
+        homeTopFieldPreview.innerHTML = `
+          <div class="gallery-item" style="max-width:420px">
+            <img src="${escapeHtml(item.imageUrl)}" alt="home-top" loading="lazy" style="aspect-ratio:auto;height:auto;max-height:260px" />
+            <div class="gallery-file">${escapeHtml(item.file || "")}</div>
+          </div>
+        `;
+      }
+
+      function openHomeTopUpload() {
+        homeTopFileInput.click();
+      }
+
+      async function handleHomeTopFilePicked(event) {
+        try {
+          const file = event?.target?.files?.[0];
+          if (!file) return;
+          const mimeType = String(file.type || "").toLowerCase();
+          const ext = String(file.name || "").toLowerCase().split(".").pop() || "";
+          const allowedMime = ["image/png", "image/jpeg", "image/webp"];
+          const allowedExt = ["png", "jpg", "jpeg", "webp"];
+          if (!allowedMime.includes(mimeType) && !allowedExt.includes(ext)) {
+            out.textContent = "Only PNG/JPG/WEBP files are supported for Home Top field.";
+            return;
+          }
+          const dataBase64 = await fileToBase64(file);
+          const ok = await callUpload("/admin/home-top/upload", {
+            fileName: file.name,
+            targetFile: `home-top-${Date.now()}-${file.name}`,
+            mimeType,
+            dataBase64,
+          });
+          if (ok) await loadHomeTopField();
+        } catch (error) {
+          out.textContent = String(error?.message || error || "Home top upload failed.");
+        } finally {
+          homeTopFileInput.value = "";
+        }
+      }
+
+      async function deleteHomeTopField() {
+        if (!confirm("Delete home top field image?")) return;
+        const ok = await callDelete("/admin/home-top");
+        if (ok) await loadHomeTopField();
+      }
+
       function openReplaceUpload(group, file) {
         pendingUploadTarget = { mode: "replace", group, file };
         galleryFileInput.click();
@@ -616,10 +684,12 @@
         tokenInput.addEventListener("blur", saveToken);
         galleryFileInput.addEventListener("change", handleGalleryFilePicked);
         notificationFileInput.addEventListener("change", handleNotificationFilePicked);
+        homeTopFileInput.addEventListener("change", handleHomeTopFilePicked);
         await loadFlyers();
         await loadNotifications();
         await loadPrices();
         await loadApkGallery();
+        await loadHomeTopField();
       }
 
       boot();

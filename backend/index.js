@@ -28,6 +28,7 @@ const BACKEND_PUBLIC_URL = (process.env.BACKEND_PUBLIC_URL || "").replace(/\/+$/
 const APK_ASSET_GROUP_DIRS = {
   letoci: path.resolve(__dirname, "..", "zito-app", "assets", "images", "letoci"),
   akcii: path.resolve(__dirname, "..", "zito-app", "assets", "images", "akcii"),
+  home_top: path.resolve(__dirname, "..", "zito-app", "assets", "images"),
 };
 const db = dbFactory();
 const oauthStateStore = new Map();
@@ -55,6 +56,7 @@ const ASSET_EXT_TO_MIME = {
   ".pdf": "application/pdf",
 };
 const NOTIFICATION_ASSET_GROUP = "notifications";
+const HOME_TOP_GROUP = "home_top";
 
 app.use(cors());
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
@@ -423,12 +425,85 @@ async function buildApkGalleryPayload(req) {
   return { currentFlyers, bestDeals };
 }
 
+async function buildHomeTopPayload(req) {
+  const rows = await db.listCmsAssets(HOME_TOP_GROUP);
+  const items = rows
+    .filter((row) => !isPdfThumbnailFileName(row.fileName))
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  const selected = items[0] || null;
+  if (!selected) return { item: null };
+  return {
+    item: {
+      file: selected.fileName,
+      mimeType: selected.mimeType,
+      imageUrl: `${getBackendBaseUrl(req)}/cms/apk-asset/${HOME_TOP_GROUP}/${encodeURIComponent(selected.fileName)}`,
+      updatedAt: selected.updatedAt,
+    },
+  };
+}
+
 app.get("/cms/apk-gallery", async (req, res) => {
   return res.json(await buildApkGalleryPayload(req));
 });
 
 app.get("/admin/apk-gallery", requireAdmin, async (req, res) => {
   return res.json(await buildApkGalleryPayload(req));
+});
+
+app.get("/cms/home-top", async (req, res) => {
+  return res.json(await buildHomeTopPayload(req));
+});
+
+app.get("/admin/home-top", requireAdmin, async (req, res) => {
+  return res.json(await buildHomeTopPayload(req));
+});
+
+app.post("/admin/home-top/upload", requireAdmin, async (req, res) => {
+  const rawName = sanitizeAssetFilename(req.body?.targetFile || req.body?.fileName || "");
+  if (!rawName) return res.status(400).json({ error: "fileName is required" });
+
+  const mimeType = String(req.body?.mimeType || "")
+    .trim()
+    .toLowerCase();
+  const extFromMime = ASSET_MIME_TO_EXT[mimeType] || "";
+  const extFromName = ASSET_URL_EXT_TO_EXT[path.extname(rawName).toLowerCase()] || "";
+  const buffer = decodeBase64Image(req.body?.dataBase64);
+  if (!buffer || buffer.length === 0) return res.status(400).json({ error: "File payload is empty" });
+  if (buffer.length > MAX_UPLOAD_SIZE_BYTES) return res.status(400).json({ error: "File is too large (max 50MB)" });
+
+  const extFromBuffer = detectAssetExtFromBuffer(buffer);
+  const ext = extFromMime || extFromName || extFromBuffer;
+  if (!ext || (ext !== ".png" && ext !== ".jpg" && ext !== ".webp")) {
+    return res.status(400).json({ error: "Only png, jpg, webp are supported for home top field" });
+  }
+
+  const existing = await db.listCmsAssets(HOME_TOP_GROUP);
+  for (const row of existing) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.deleteCmsAsset(HOME_TOP_GROUP, row.fileName);
+  }
+
+  const finalName = rawName.toLowerCase().endsWith(ext) ? rawName : `${rawName}${ext}`;
+  const mimeTypeFromExt = ASSET_EXT_TO_MIME[ext] || "application/octet-stream";
+  await db.upsertCmsAsset({
+    groupName: HOME_TOP_GROUP,
+    fileName: finalName,
+    mimeType: mimeTypeFromExt,
+    data: buffer,
+    updatedAt: new Date().toISOString(),
+  });
+  return res.json({ ok: true, group: HOME_TOP_GROUP, file: finalName, bytes: buffer.length, storage: "db" });
+});
+
+app.delete("/admin/home-top", requireAdmin, async (_req, res) => {
+  const existing = await db.listCmsAssets(HOME_TOP_GROUP);
+  let deleted = 0;
+  for (const row of existing) {
+    // eslint-disable-next-line no-await-in-loop
+    const ok = await db.deleteCmsAsset(HOME_TOP_GROUP, row.fileName);
+    if (ok) deleted += 1;
+  }
+  return res.json({ ok: true, deleted });
 });
 
 app.post("/admin/apk-gallery/upload", requireAdmin, async (req, res) => {

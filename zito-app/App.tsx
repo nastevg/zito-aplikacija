@@ -102,6 +102,17 @@ type ApkGalleryPayload = {
   bestDeals: ApkGalleryItem[];
 };
 
+type HomeTopItem = {
+  file: string;
+  mimeType: string;
+  imageUrl: string;
+  updatedAt: string;
+};
+
+type HomeTopPayload = {
+  item: HomeTopItem | null;
+};
+
 type MarketLocation = {
   name: string;
   city: string;
@@ -1207,13 +1218,13 @@ function BarcodeStrip({ value, height = 64 }: { value: string; height?: number }
 
 function HomeScreen({
   user,
-  card,
   currentFlyers,
+  homeTopItem,
   onOpenShoppingList,
 }: {
   user: User;
-  card: CardData;
   currentFlyers: CurrentFlyerMock[];
+  homeTopItem: HomeTopItem | null;
   onOpenShoppingList: () => void;
 }) {
   const { mode, palette, toggleTheme } = useAppTheme();
@@ -1232,6 +1243,7 @@ function HomeScreen({
     [currentFlyersData],
   );
   const flyersListRef = useRef<FlatList<CurrentFlyerMock> | null>(null);
+  const [homeTopAspectRatio, setHomeTopAspectRatio] = useState(16 / 6);
   const [activePdfUrl, setActivePdfUrl] = useState("");
   const [pdfLoadProgress, setPdfLoadProgress] = useState(0);
   const [pdfLoadError, setPdfLoadError] = useState("");
@@ -1325,10 +1337,20 @@ function HomeScreen({
           />
         </Pressable>
         <Image source={logoImage} style={styles.homeTopLogo} resizeMode="contain" />
-        <View style={[styles.homeBarcodeWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <BarcodeStrip value={card.barcode} height={46} />
-          <Text style={[styles.homeBarcodeDigits, { color: palette.text }]}>{card.barcode}</Text>
-        </View>
+        {homeTopItem?.imageUrl ? (
+          <View style={[styles.homeTopFieldWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Image
+              source={{ uri: homeTopItem.imageUrl }}
+              style={[styles.homeTopFieldImage, { aspectRatio: homeTopAspectRatio }]}
+              resizeMode="contain"
+              onLoad={(event) => {
+                const width = Number(event.nativeEvent?.source?.width || 0);
+                const height = Number(event.nativeEvent?.source?.height || 0);
+                if (width > 0 && height > 0) setHomeTopAspectRatio(width / height);
+              }}
+            />
+          </View>
+        ) : null}
 
         <View style={[styles.showcaseSection, { height: showcaseSectionHeight, backgroundColor: palette.card, borderColor: palette.border }]}>
           <OutlinedHeader text={t("home_current_flyers")} />
@@ -2469,6 +2491,7 @@ function MainTabs({
   user,
   flyers,
   currentFlyers,
+  homeTopItem,
   notices,
   card,
   shoppingItems,
@@ -2493,6 +2516,7 @@ function MainTabs({
   user: User;
   flyers: Flyer[];
   currentFlyers: CurrentFlyerMock[];
+  homeTopItem: HomeTopItem | null;
   notices: Notice[];
   card: CardData;
   shoppingItems: ShoppingItem[];
@@ -2604,8 +2628,8 @@ function MainTabs({
         {({ navigation }) => (
           <HomeScreen
             user={user}
-            card={card}
             currentFlyers={currentFlyers}
+            homeTopItem={homeTopItem}
             onOpenShoppingList={() => navigation.navigate("Shopping")}
           />
         )}
@@ -2744,6 +2768,7 @@ export default function App() {
   const [user, setUser] = useState<User>(fallbackUser);
   const [flyers, setFlyers] = useState<Flyer[]>(fallbackFlyers);
   const [currentFlyers, setCurrentFlyers] = useState<CurrentFlyerMock[]>([]);
+  const [homeTopItem, setHomeTopItem] = useState<HomeTopItem | null>(null);
   const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
   const [card, setCard] = useState<CardData>(fallbackCard);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
@@ -2825,12 +2850,13 @@ export default function App() {
   };
 
   const loadData = async (token: string) => {
-    const [nextUser, nextFlyers, nextNotices, nextCard, nextApkGallery] = await Promise.all([
+    const [nextUser, nextFlyers, nextNotices, nextCard, nextApkGallery, nextHomeTop] = await Promise.all([
       apiGet<User>(apiBase, "/me", token),
       apiGet<Flyer[]>(apiBase, "/flyers", token),
       apiGet<Notice[]>(apiBase, "/notifications", token),
       apiGet<CardData>(apiBase, "/loyalty/card", token),
       apiGet<ApkGalleryPayload>(apiBase, "/cms/apk-gallery", token),
+      apiGet<HomeTopPayload>(apiBase, "/cms/home-top", token).catch(() => ({ item: null })),
     ]);
     const nextCurrentFlyers = Array.isArray(nextApkGallery?.currentFlyers)
       ? nextApkGallery.currentFlyers.map((item) => ({
@@ -2845,6 +2871,7 @@ export default function App() {
     setUser(nextUser);
     setFlyers(nextFlyers);
     setCurrentFlyers(nextCurrentFlyers);
+    setHomeTopItem(nextHomeTop?.item ? nextHomeTop.item : null);
     setNotices(nextNotices);
     setCard(nextCard);
   };
@@ -3143,6 +3170,7 @@ export default function App() {
     setUser(fallbackUser);
     setFlyers(fallbackFlyers);
     setCurrentFlyers([]);
+    setHomeTopItem(null);
     setNotices(fallbackNotices);
     setCard(fallbackCard);
   };
@@ -3245,6 +3273,7 @@ export default function App() {
                 user={user}
                 flyers={flyers}
                 currentFlyers={currentFlyers}
+                homeTopItem={homeTopItem}
                 notices={notices}
                 card={card}
                 shoppingItems={shoppingItems}
@@ -3623,22 +3652,18 @@ const styles = StyleSheet.create({
     height: 48,
     marginBottom: 4,
   },
-  homeBarcodeWrap: {
+  homeTopFieldWrap: {
     backgroundColor: colors.card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     marginBottom: 2,
   },
-  homeBarcodeDigits: {
-    textAlign: "center",
-    color: colors.dark,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.2,
+  homeTopFieldImage: {
+    width: "100%",
+    alignSelf: "center",
   },
   showcaseSection: {
     backgroundColor: colors.card,
