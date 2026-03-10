@@ -1,5 +1,32 @@
 ﻿# Latest Changes
 
+## March 10, 2026 - Workflow switch: Android paused, iOS resumed
+- Active direction updated:
+  - Android work is paused for now.
+  - Development focus is switched back to iOS.
+- Next tasks will be treated as iOS-first until explicitly changed.
+
+## March 10, 2026 - [iOS parity] Synced Android fixes baseline + iOS push guard
+- Parity alignment decision:
+  - current Android functional fixes are treated as baseline for iOS parity.
+  - shared React Native features (PDF modal/progress, notification media cards, card visuals, dark theme headline logic) are already common across both platforms.
+- iOS-specific safety fix in app code:
+  - updated push token registration error handling so `missing_firebase_config` is thrown only on Android.
+  - prevents Android-specific Firebase error branch from affecting iOS push flow.
+- File updated:
+  - `zito-app/App.tsx`
+
+## March 9, 2026 - [Mobile/PDF] Loading progress bar in in-app PDF viewer
+- App (`zito-app/App.tsx`):
+  - added PDF loading progress state (`0-100%`) in fullscreen PDF modal.
+  - added visual progress bar + status text while PDF is opening.
+  - added explicit error message in modal if PDF fails to load.
+- Added fallback for PDF thumbnail URL usage in app:
+  - if API `thumbnailUrl` is missing, app also tries `imageUrl + ".thumb.jpg"`.
+- Delivery:
+  - pushed to `main` (commit `e6ff514`).
+  - built and installed fresh Android release APK on connected device.
+
 ## March 9, 2026 - [Backend/CMS] Admin Visual Catalog UX simplification (Add new + Upload + Delete)
 - Updated `backend/public/admin.html` visual catalog controls:
   - removed `Import URL` actions from both groups

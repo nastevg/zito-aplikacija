@@ -831,6 +831,8 @@ const logoImage = require("./assets/images/logo.png");
 const tiltedBadgeImage = require("./assets/images/sekogasverninavas_upscaled-removebg-preview.png");
 const bannerImage = require("./assets/images/home_banner.png");
 const flyersImage = require("./assets/images/flyers_grid.png");
+const cardFrontImage = require("./assets/kartickapredna.png");
+const cardBackImage = require("./assets/kartickazadna.png");
 // Location data refresh marker: 2026-03-06T12:05
 const rawMarketLocations = require("./assets/market_locations.json") as MarketLocation[];
 const marketLocations: MarketLocation[] = rawMarketLocations.map((item) => ({
@@ -1667,6 +1669,8 @@ function CardScreen({ card, onScanCard }: { card: CardData; onScanCard: (cardNum
       </Pressable>
       {scanStatus ? <Text style={[styles.scanStatusText, { color: palette.muted }]}>{scanStatus}</Text> : null}
       <View style={[styles.cardBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Image source={cardFrontImage} style={styles.cardPreviewImage} resizeMode="contain" />
+        <Image source={cardBackImage} style={styles.cardPreviewImage} resizeMode="contain" />
         <Image source={logoImage} style={styles.cardLogo} resizeMode="contain" />
         <Text style={[styles.cardNumber, { color: palette.muted }]}>{card.cardNumber}</Text>
         <View style={[styles.barcodeWrap, { backgroundColor: palette.inputBg, borderColor: palette.border }]}>
@@ -2680,7 +2684,10 @@ async function registerForPush(t: (key: string) => string): Promise<string> {
       : await Notifications.getExpoPushTokenAsync();
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (message.includes("Default FirebaseApp") || message.includes("no default options")) {
+    if (
+      Platform.OS === "android" &&
+      (message.includes("Default FirebaseApp") || message.includes("no default options"))
+    ) {
       throw new Error("missing_firebase_config");
     }
     if (!projectId) {
@@ -3943,6 +3950,13 @@ const styles = StyleSheet.create({
     height: 56,
     alignSelf: "center",
     marginBottom: 8,
+  },
+  cardPreviewImage: {
+    width: "100%",
+    height: 170,
+    alignSelf: "center",
+    marginBottom: 10,
+    borderRadius: 12,
   },
   cardNumber: {
     textAlign: "center",
