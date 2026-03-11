@@ -1,12 +1,15 @@
 const appJson = require("./app.json");
 
 const defaultApiBase =
-  appJson?.expo?.extra?.apiBase || "https://zito-backend.onrender.com";
+  appJson?.expo?.extra?.apiBase || "https://zito-cms-backend.onrender.com";
 const defaultAppEnv = "development";
 
 module.exports = ({ config }) => ({
   ...config,
   ...appJson.expo,
+  plugins: Array.from(
+    new Set([...(appJson.expo.plugins || []), "@react-native-community/datetimepicker"]),
+  ),
   extra: {
     ...(appJson.expo.extra || {}),
     // One-time release config by team. End users never type backend URL.

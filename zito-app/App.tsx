@@ -30,6 +30,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-
 import RNBlobUtil from "react-native-blob-util";
 import Pdf from "react-native-pdf";
 import Svg, { Circle, G } from "react-native-svg";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 type RootStackParamList = {
   Login: undefined;
@@ -1679,6 +1680,19 @@ function normalizePurchaseDate(value: string) {
   return parsed.toISOString().slice(0, 10);
 }
 
+function formatDateKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function dateFromKey(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function toNumberSafe(value: string) {
   const parsed = Number(String(value || "").replace(",", ".").replace(/[^\d.-]/g, ""));
   return Number.isFinite(parsed) ? parsed : 0;
@@ -1713,6 +1727,7 @@ function FlyersScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [activeDateField, setActiveDateField] = useState<"from" | "to" | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -1797,6 +1812,25 @@ function FlyersScreen({
   const pieTotal = analytics.categories.reduce((sum, row) => sum + row.value, 0);
 
   let dashOffsetAcc = 0;
+  const pickerValue = useMemo(() => {
+    if (activeDateField === "from") return dateFromKey(dateFrom) || new Date();
+    if (activeDateField === "to") return dateFromKey(dateTo) || new Date();
+    return new Date();
+  }, [activeDateField, dateFrom, dateTo]);
+
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (event.type === "dismissed" || !selectedDate || !activeDateField) {
+      setActiveDateField(null);
+      return;
+    }
+    const key = formatDateKey(selectedDate);
+    if (activeDateField === "from") {
+      setDateFrom(key);
+    } else {
+      setDateTo(key);
+    }
+    setActiveDateField(null);
+  };
 
   return (
     <ScreenWrap
@@ -1817,23 +1851,31 @@ function FlyersScreen({
         ) : (
           <>
             <View style={styles.analyticsFilterRow}>
-              <TextInput
-                value={dateFrom}
-                onChangeText={setDateFrom}
-                placeholder={t("flyers_date_from")}
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={[styles.analyticsDateInput, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
-              />
-              <TextInput
-                value={dateTo}
-                onChangeText={setDateTo}
-                placeholder={t("flyers_date_to")}
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={[styles.analyticsDateInput, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
-              />
+              <Pressable
+                style={[styles.analyticsDateInput, styles.analyticsDateBtn, { backgroundColor: palette.inputBg, borderColor: palette.border }]}
+                onPress={() => setActiveDateField("from")}
+              >
+                <Text style={[styles.analyticsDateBtnText, { color: dateFrom ? palette.text : palette.muted }]}>
+                  {dateFrom || t("flyers_date_from")}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.analyticsDateInput, styles.analyticsDateBtn, { backgroundColor: palette.inputBg, borderColor: palette.border }]}
+                onPress={() => setActiveDateField("to")}
+              >
+                <Text style={[styles.analyticsDateBtnText, { color: dateTo ? palette.text : palette.muted }]}>
+                  {dateTo || t("flyers_date_to")}
+                </Text>
+              </Pressable>
             </View>
+            {activeDateField ? (
+              <DateTimePicker
+                value={pickerValue}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={handleDateChange}
+              />
+            ) : null}
             <Pressable
               style={[styles.analyticsClearBtn, { borderColor: palette.border, backgroundColor: palette.bg }]}
               onPress={() => {
@@ -4393,6 +4435,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 13,
     fontWeight: "600",
+  },
+  analyticsDateBtn: {
+    justifyContent: "center",
+  },
+  analyticsDateBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   analyticsClearBtn: {
     alignSelf: "flex-start",
