@@ -31,6 +31,7 @@ const EXTERNAL_PRICES_TIMEOUT_MS = Number(process.env.EXTERNAL_PRICES_TIMEOUT_MS
 const PRICE_REFRESH_HOUR_LOCAL = Number(process.env.PRICE_REFRESH_HOUR_LOCAL || 7);
 const PRICE_REFRESH_TIMEZONE = String(process.env.PRICE_REFRESH_TIMEZONE || "Europe/Skopje").trim() || "Europe/Skopje";
 const LOYALTY_SOAP_URL = String(process.env.LOYALTY_SOAP_URL || "").trim();
+const LOYALTY_SOAP_STRICT_VERIFY = String(process.env.LOYALTY_SOAP_STRICT_VERIFY || "false").trim().toLowerCase() === "true";
 const APK_ASSET_GROUP_DIRS = {
   letoci: path.resolve(__dirname, "..", "zito-app", "assets", "images", "letoci"),
   akcii: path.resolve(__dirname, "..", "zito-app", "assets", "images", "akcii"),
@@ -208,6 +209,10 @@ function isPriceFreshForBusinessDay(updatedAt) {
 
 function hasLoyaltySoapConfigured() {
   return /^https?:\/\//i.test(LOYALTY_SOAP_URL);
+}
+
+function shouldRejectOnLoyaltyServiceError() {
+  return LOYALTY_SOAP_STRICT_VERIFY;
 }
 
 function escapeXml(input) {
@@ -953,9 +958,10 @@ app.post("/auth/register", async (req, res) => {
     if (hasLoyaltySoapConfigured()) {
       const verifyResult = await callLoyaltySoap("ProverkaKorisnik", submittedCardNumber);
       if (!verifyResult.ok) {
-        return res.status(502).json({ error: `Loyalty service unavailable: ${verifyResult.error}` });
-      }
-      if (!parseLoyaltyVerify(verifyResult.raw)) {
+        if (shouldRejectOnLoyaltyServiceError()) {
+          return res.status(502).json({ error: `Loyalty service unavailable: ${verifyResult.error}` });
+        }
+      } else if (!parseLoyaltyVerify(verifyResult.raw)) {
         return res.status(400).json({ error: "Invalid loyalty card number" });
       }
     }
@@ -1160,9 +1166,10 @@ app.post("/me/card", requireAuth, async (req, res) => {
     if (hasLoyaltySoapConfigured()) {
       const verifyResult = await callLoyaltySoap("ProverkaKorisnik", cardNumber);
       if (!verifyResult.ok) {
-        return res.status(502).json({ error: `Loyalty service unavailable: ${verifyResult.error}` });
-      }
-      if (!parseLoyaltyVerify(verifyResult.raw)) {
+        if (shouldRejectOnLoyaltyServiceError()) {
+          return res.status(502).json({ error: `Loyalty service unavailable: ${verifyResult.error}` });
+        }
+      } else if (!parseLoyaltyVerify(verifyResult.raw)) {
         return res.status(400).json({ error: "Invalid loyalty card number" });
       }
     }

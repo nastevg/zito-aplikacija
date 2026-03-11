@@ -292,6 +292,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     state_card_invalid: "Невалиден број на картичка.",
     state_card_linked: "Оваа картичка е веќе поврзана со друг профил.",
     state_card_error: "Грешка при ажурирање на картичка.",
+    state_card_service_unavailable: "Сервисот за картичка моментално не е достапен.",
     card_points_title: "Поени",
     card_purchases_title: "Купени продукти",
     card_purchases_empty: "Нема пазарувања за приказ.",
@@ -432,6 +433,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     state_card_invalid: "Invalid loyalty card number.",
     state_card_linked: "This card is already linked to another profile.",
     state_card_error: "Could not update card.",
+    state_card_service_unavailable: "Loyalty card service is currently unavailable.",
     card_points_title: "Points",
     card_purchases_title: "Purchased products",
     card_purchases_empty: "No purchases to display.",
@@ -572,6 +574,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     state_card_invalid: "Numer i pavlefshem i karteles.",
     state_card_linked: "Kjo kartele eshte tashme e lidhur me nje profil tjeter.",
     state_card_error: "Nuk mund te perditesoj kartelen.",
+    state_card_service_unavailable: "Sherbimi i karteles nuk eshte i disponueshem tani.",
     card_points_title: "Pike",
     card_purchases_title: "Produkte te blera",
     card_purchases_empty: "Nuk ka blerje per t'u shfaqur.",
@@ -712,6 +715,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     state_card_invalid: "Gecersiz sadakat karti numarasi.",
     state_card_linked: "Bu kart baska bir profile bagli.",
     state_card_error: "Kart guncellenemedi.",
+    state_card_service_unavailable: "Kart servisi su anda kullanilamiyor.",
     card_points_title: "Puanlar",
     card_purchases_title: "Satin alinan urunler",
     card_purchases_empty: "Gosterilecek alisveris yok.",
@@ -3235,6 +3239,7 @@ export default function App() {
       const apiError = extractApiErrorMessage(error).toLowerCase();
       if (apiError.includes("already linked")) return t("state_card_linked");
       if (apiError.includes("invalid loyalty card")) return t("state_card_invalid");
+      if (apiError.includes("service unavailable")) return t("state_card_service_unavailable");
       return t("state_card_error");
     }
   };
