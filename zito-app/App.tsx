@@ -29,6 +29,7 @@ import {
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import RNBlobUtil from "react-native-blob-util";
 import Pdf from "react-native-pdf";
+import Svg, { Circle, G } from "react-native-svg";
 
 type RootStackParamList = {
   Login: undefined;
@@ -316,7 +317,18 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_profile: "Профил",
     tab_more: "Повеќе",
     screen_flyers_title: "Дигитални флаери",
-    screen_flyers_subtitle: "Истакнати производи и топ акции",
+    screen_flyers_subtitle: "Анализа на купувања и категории",
+    flyers_analytics_title: "Анализа на купувања",
+    flyers_date_from: "Од датум (YYYY-MM-DD)",
+    flyers_date_to: "До датум (YYYY-MM-DD)",
+    flyers_clear_filter: "Исчисти филтер",
+    flyers_total_spent: "Вкупно потрошено",
+    flyers_total_items: "Вкупно парчиња",
+    flyers_total_receipts: "Број на сметки",
+    flyers_category_chart_title: "Потрошувачка по категории",
+    flyers_recent_purchases: "Купени производи",
+    flyers_no_card: "Нема поврзана картичка. Додади картичка во табот Картичка.",
+    flyers_no_data: "Нема податоци за избраниот период.",
     screen_card_title: "Дигитална картичка",
     screen_card_subtitle: "Жито Клуб",
     screen_prices_title: "Проверка на цена",
@@ -459,7 +471,18 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_profile: "Profile",
     tab_more: "More",
     screen_flyers_title: "Digital Flyers",
-    screen_flyers_subtitle: "Featured products and top deals",
+    screen_flyers_subtitle: "Shopping analytics and categories",
+    flyers_analytics_title: "Shopping analytics",
+    flyers_date_from: "From date (YYYY-MM-DD)",
+    flyers_date_to: "To date (YYYY-MM-DD)",
+    flyers_clear_filter: "Clear filter",
+    flyers_total_spent: "Total spent",
+    flyers_total_items: "Total quantity",
+    flyers_total_receipts: "Receipts",
+    flyers_category_chart_title: "Spend by category",
+    flyers_recent_purchases: "Purchased products",
+    flyers_no_card: "No linked card. Add a card in the Card tab.",
+    flyers_no_data: "No data for the selected period.",
     screen_card_title: "Digital Card",
     screen_card_subtitle: "Zito Club",
     screen_prices_title: "Price Check",
@@ -602,7 +625,18 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_profile: "Profili",
     tab_more: "More",
     screen_flyers_title: "Fletë Digjitale",
-    screen_flyers_subtitle: "Produkte të theksuara dhe oferta kryesore",
+    screen_flyers_subtitle: "Analize e blerjeve dhe kategorive",
+    flyers_analytics_title: "Analize e blerjeve",
+    flyers_date_from: "Nga data (YYYY-MM-DD)",
+    flyers_date_to: "Deri me (YYYY-MM-DD)",
+    flyers_clear_filter: "Pastro filtrin",
+    flyers_total_spent: "Totali i shpenzuar",
+    flyers_total_items: "Sasia totale",
+    flyers_total_receipts: "Numri i faturave",
+    flyers_category_chart_title: "Shpenzimi sipas kategorive",
+    flyers_recent_purchases: "Produktet e blera",
+    flyers_no_card: "Nuk ka kartele te lidhur. Shto kartele te tab-i Kartela.",
+    flyers_no_data: "Nuk ka te dhena per periudhen e zgjedhur.",
     screen_card_title: "Kartelë Digjitale",
     screen_card_subtitle: "Zito Klub",
     screen_prices_title: "Kontrollo cmimin",
@@ -745,7 +779,18 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_profile: "Profil",
     tab_more: "More",
     screen_flyers_title: "Dijital Brosurler",
-    screen_flyers_subtitle: "One cikan urunler ve en iyi aksiyonlar",
+    screen_flyers_subtitle: "Alisveris analizi ve kategoriler",
+    flyers_analytics_title: "Alisveris analizi",
+    flyers_date_from: "Baslangic (YYYY-MM-DD)",
+    flyers_date_to: "Bitis (YYYY-MM-DD)",
+    flyers_clear_filter: "Filtreyi temizle",
+    flyers_total_spent: "Toplam harcama",
+    flyers_total_items: "Toplam adet",
+    flyers_total_receipts: "Fis sayisi",
+    flyers_category_chart_title: "Kategoriye gore harcama",
+    flyers_recent_purchases: "Satin alinan urunler",
+    flyers_no_card: "Bagli kart yok. Kart sekmesinden kart ekleyin.",
+    flyers_no_data: "Secilen aralik icin veri yok.",
     screen_card_title: "Dijital Kart",
     screen_card_subtitle: "Zito Kulup",
     screen_prices_title: "Fiyat kontrolu",
@@ -1624,20 +1669,134 @@ function getPdfCacheUri(remoteUrl: string) {
   return `${baseDir}/flyer-pdf-${hashText(remoteUrl)}.pdf`;
 }
 
-function FlyersScreen({ flyers, onOpenShoppingList }: { flyers: Flyer[]; onOpenShoppingList: () => void }) {
+function normalizePurchaseDate(value: string) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  const candidate = trimmed.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return candidate;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+}
+
+function toNumberSafe(value: string) {
+  const parsed = Number(String(value || "").replace(",", ".").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function categorizeProduct(name: string) {
+  const upper = String(name || "").toUpperCase();
+  if (/(МЛЕКО|ЈОГУРТ|СИРЕЊЕ|КАШКАВАЛ|ПАВЛАКА|BUTTER|CHEESE|YOGURT|MILK)/.test(upper)) return "Млечни";
+  if (/(МЕСО|САЛАМА|ПИЛЕ|КОЛБАС|ПРШУТА|BEEF|CHICKEN|MEAT|HAM|SALAMI)/.test(upper)) return "Месо";
+  if (/(ВОДА|СОК|ПИВО|ВИНО|КАФЕ|ЧАЈ|COLA|JUICE|WATER|BEER|WINE|COFFEE|TEA)/.test(upper)) return "Пијалаци";
+  if (/(ЛЕБ|БУРЕК|КИФЛ|ПЕЦИВО|BREAD|BAKERY|ROLL|BUN)/.test(upper)) return "Леб и пецива";
+  if (/(САПУН|ШАМПОН|ДЕТЕРГЕНТ|ПАСТА|TOILET|SOAP|SHAMPOO|DETERGENT|PASTE)/.test(upper)) return "Хигиена";
+  if (/(ЈАБОЛКО|БАНАН|ПОРТОКАЛ|ДОМАТ|КРАСТАВ|ПИПЕР|ОВОШ|ЗЕЛЕНЧ|APPLE|BANANA|ORANGE|TOMATO|CUCUMBER|FRUIT|VEGETABLE)/.test(upper)) return "Овошје/Зеленчук";
+  return "Останато";
+}
+
+function FlyersScreen({
+  card,
+  onLoadPurchases,
+  onLoadPoints,
+  onOpenShoppingList,
+}: {
+  card: CardData;
+  onLoadPurchases: () => Promise<PurchaseItem[]>;
+  onLoadPoints: () => Promise<number>;
+  onOpenShoppingList: () => void;
+}) {
   const { t } = useI18n();
-  const { palette, mode } = useAppTheme();
-  const handleOpenFlyer = async (flyer: Flyer) => {
-    const targetUrl = normalizeExternalFlyerUrl(flyer.image);
-    if (!targetUrl) return;
-    try {
-      const canOpen = await Linking.canOpenURL(targetUrl);
-      if (!canOpen) return;
-      await Linking.openURL(targetUrl);
-    } catch {
-      // Ignore URL open failures.
+  const { palette } = useAppTheme();
+  const [allPurchases, setAllPurchases] = useState<PurchaseItem[]>([]);
+  const [points, setPoints] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    const loadAnalytics = async () => {
+      if (!card.cardNumber) {
+        if (!active) return;
+        setAllPurchases([]);
+        setPoints(0);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const [purchases, nextPoints] = await Promise.all([onLoadPurchases(), onLoadPoints()]);
+        if (!active) return;
+        setAllPurchases(Array.isArray(purchases) ? purchases : []);
+        setPoints(Number.isFinite(nextPoints) ? nextPoints : 0);
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    void loadAnalytics();
+    return () => {
+      active = false;
+    };
+  }, [card.cardNumber, onLoadPurchases, onLoadPoints]);
+
+  const filteredPurchases = useMemo(() => {
+    const from = dateFrom.trim();
+    const to = dateTo.trim();
+    return allPurchases.filter((item) => {
+      const key = normalizePurchaseDate(item.datumSka);
+      if (!key) return false;
+      if (from && key < from) return false;
+      if (to && key > to) return false;
+      return true;
+    });
+  }, [allPurchases, dateFrom, dateTo]);
+
+  const analytics = useMemo(() => {
+    let totalSpent = 0;
+    let totalQty = 0;
+    const receipts = new Set<string>();
+    const byCategory = new Map<string, number>();
+    const byProduct = new Map<string, number>();
+
+    for (const item of filteredPurchases) {
+      const value = toNumberSafe(item.vrednost);
+      const qty = toNumberSafe(item.kolicina);
+      const product = String(item.imeArt || "").trim() || "Непознато";
+      const category = categorizeProduct(product);
+      const receiptKey = `${item.brojSka || ""}-${item.brKasa || ""}-${normalizePurchaseDate(item.datumSka)}`;
+
+      totalSpent += value;
+      totalQty += qty;
+      if (receiptKey !== "--") receipts.add(receiptKey);
+      byCategory.set(category, (byCategory.get(category) || 0) + value);
+      byProduct.set(product, (byProduct.get(product) || 0) + value);
     }
-  };
+
+    const categories = Array.from(byCategory.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    const topProducts = Array.from(byProduct.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+
+    return {
+      totalSpent,
+      totalQty,
+      receipts: receipts.size,
+      categories,
+      topProducts,
+    };
+  }, [filteredPurchases]);
+
+  const pieColors = ["#0B8F45", "#1EA7FD", "#FFB300", "#E53935", "#8E24AA", "#00897B", "#6D4C41"];
+  const pieSize = 170;
+  const pieRadius = 62;
+  const pieCirc = 2 * Math.PI * pieRadius;
+  const pieTotal = analytics.categories.reduce((sum, row) => sum + row.value, 0);
+
+  let dashOffsetAcc = 0;
 
   return (
     <ScreenWrap
@@ -1650,26 +1809,121 @@ function FlyersScreen({ flyers, onOpenShoppingList }: { flyers: Flyer[]; onOpenS
         <Ionicons name="basket-outline" size={18} color={colors.green} />
         <Text style={styles.quickListBtnText}>{t("open_shopping_list")}</Text>
       </Pressable>
-      <FlatList
-        data={flyers}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={{ gap: 12 }}
-        contentContainerStyle={{ gap: 12, paddingBottom: 12 }}
-        renderItem={({ item }) => (
-          <View style={styles.flyerCard}>
-            <Image source={flyersImage} style={styles.flyerThumb} resizeMode="cover" />
-            <Text style={styles.flyerTitle}>{item.title}</Text>
-            <Text style={styles.flyerPrice}>{item.price}</Text>
-            {normalizeExternalFlyerUrl(item.image) ? (
-              <Pressable style={styles.flyerOpenBtn} onPress={() => void handleOpenFlyer(item)}>
-                <Ionicons name="open-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.flyerOpenBtnText}>Open leaflet</Text>
-              </Pressable>
-            ) : null}
-          </View>
+
+      <View style={[styles.analyticsCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.analyticsTitle, { color: palette.text }]}>{t("flyers_analytics_title")}</Text>
+        {!card.cardNumber ? (
+          <Text style={[styles.analyticsEmptyText, { color: palette.muted }]}>{t("flyers_no_card")}</Text>
+        ) : (
+          <>
+            <View style={styles.analyticsFilterRow}>
+              <TextInput
+                value={dateFrom}
+                onChangeText={setDateFrom}
+                placeholder={t("flyers_date_from")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.analyticsDateInput, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
+              />
+              <TextInput
+                value={dateTo}
+                onChangeText={setDateTo}
+                placeholder={t("flyers_date_to")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.analyticsDateInput, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
+              />
+            </View>
+            <Pressable
+              style={[styles.analyticsClearBtn, { borderColor: palette.border, backgroundColor: palette.bg }]}
+              onPress={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+            >
+              <Text style={[styles.analyticsClearBtnText, { color: palette.text }]}>{t("flyers_clear_filter")}</Text>
+            </Pressable>
+
+            <View style={styles.analyticsStatsGrid}>
+              <View style={[styles.analyticsStatBox, { borderColor: palette.border }]}>
+                <Text style={[styles.analyticsStatLabel, { color: palette.muted }]}>{t("flyers_total_spent")}</Text>
+                <Text style={styles.analyticsStatValue}>{analytics.totalSpent.toFixed(2)} ден.</Text>
+              </View>
+              <View style={[styles.analyticsStatBox, { borderColor: palette.border }]}>
+                <Text style={[styles.analyticsStatLabel, { color: palette.muted }]}>{t("flyers_total_items")}</Text>
+                <Text style={styles.analyticsStatValue}>{analytics.totalQty.toFixed(0)}</Text>
+              </View>
+              <View style={[styles.analyticsStatBox, { borderColor: palette.border }]}>
+                <Text style={[styles.analyticsStatLabel, { color: palette.muted }]}>{t("flyers_total_receipts")}</Text>
+                <Text style={styles.analyticsStatValue}>{analytics.receipts}</Text>
+              </View>
+              <View style={[styles.analyticsStatBox, { borderColor: palette.border }]}>
+                <Text style={[styles.analyticsStatLabel, { color: palette.muted }]}>{t("card_points_title")}</Text>
+                <Text style={styles.analyticsStatValue}>{points}</Text>
+              </View>
+            </View>
+
+            <Text style={[styles.analyticsSectionTitle, { color: palette.text }]}>{t("flyers_category_chart_title")}</Text>
+            {isLoading ? (
+              <Text style={[styles.analyticsEmptyText, { color: palette.muted }]}>{t("card_loading")}</Text>
+            ) : analytics.categories.length === 0 || pieTotal <= 0 ? (
+              <Text style={[styles.analyticsEmptyText, { color: palette.muted }]}>{t("flyers_no_data")}</Text>
+            ) : (
+              <View style={styles.analyticsPieWrap}>
+                <Svg width={pieSize} height={pieSize} viewBox={`0 0 ${pieSize} ${pieSize}`}>
+                  <G rotation={-90} origin={`${pieSize / 2}, ${pieSize / 2}`}>
+                    {analytics.categories.map((row, idx) => {
+                      const sliceLength = (row.value / pieTotal) * pieCirc;
+                      const gapLength = Math.max(0, pieCirc - sliceLength);
+                      const dash = `${sliceLength} ${gapLength}`;
+                      const offset = -dashOffsetAcc;
+                      dashOffsetAcc += sliceLength;
+                      return (
+                        <Circle
+                          key={`${row.name}-${idx}`}
+                          cx={pieSize / 2}
+                          cy={pieSize / 2}
+                          r={pieRadius}
+                          fill="none"
+                          stroke={pieColors[idx % pieColors.length]}
+                          strokeWidth={24}
+                          strokeDasharray={dash}
+                          strokeDashoffset={offset}
+                          strokeLinecap="butt"
+                        />
+                      );
+                    })}
+                  </G>
+                </Svg>
+                <View style={styles.analyticsLegend}>
+                  {analytics.categories.map((row, idx) => (
+                    <View key={`${row.name}-legend`} style={styles.analyticsLegendRow}>
+                      <View style={[styles.analyticsLegendColor, { backgroundColor: pieColors[idx % pieColors.length] }]} />
+                      <Text style={[styles.analyticsLegendText, { color: palette.text }]}>
+                        {row.name}: {row.value.toFixed(2)} ден.
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <Text style={[styles.analyticsSectionTitle, { color: palette.text }]}>{t("flyers_recent_purchases")}</Text>
+            {filteredPurchases.length === 0 ? (
+              <Text style={[styles.analyticsEmptyText, { color: palette.muted }]}>{t("flyers_no_data")}</Text>
+            ) : (
+              filteredPurchases.slice(0, 120).map((item, idx) => (
+                <View key={`${item.brojSka}-${item.brKasa}-${idx}`} style={[styles.analyticsPurchaseRow, { borderBottomColor: palette.border }]}>
+                  <Text style={[styles.analyticsPurchaseName, { color: palette.text }]}>{item.imeArt}</Text>
+                  <Text style={[styles.analyticsPurchaseMeta, { color: palette.muted }]}>
+                    {normalizePurchaseDate(item.datumSka)} | x{item.kolicina} | {toNumberSafe(item.vrednost).toFixed(2)} ден. | {categorizeProduct(item.imeArt)}
+                  </Text>
+                </View>
+              ))
+            )}
+          </>
         )}
-      />
+      </View>
     </ScreenWrap>
   );
 }
@@ -2778,7 +3032,14 @@ function MainTabs({
         )}
       </Tab.Screen>
       <Tab.Screen name="Flyers" options={{ title: t("tab_flyers") }}>
-        {({ navigation }) => <FlyersScreen flyers={flyers} onOpenShoppingList={() => navigation.navigate("Shopping")} />}
+        {({ navigation }) => (
+          <FlyersScreen
+            card={card}
+            onLoadPurchases={onLoadLoyaltyPurchases}
+            onLoadPoints={onLoadLoyaltyPoints}
+            onOpenShoppingList={() => navigation.navigate("Shopping")}
+          />
+        )}
       </Tab.Screen>
       <Tab.Screen name="PriceCheck" options={{ title: t("tab_prices") }}>
         {() => <PriceCheckScreen onCheckPrice={onCheckPrice} />}
@@ -4109,6 +4370,107 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "700",
+  },
+  analyticsCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    gap: 10,
+  },
+  analyticsTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  analyticsFilterRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  analyticsDateInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  analyticsClearBtn: {
+    alignSelf: "flex-start",
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  analyticsClearBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  analyticsStatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  analyticsStatBox: {
+    width: "48%",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    gap: 4,
+  },
+  analyticsStatLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  analyticsStatValue: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.green,
+  },
+  analyticsSectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    marginTop: 4,
+  },
+  analyticsPieWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  analyticsLegend: {
+    flex: 1,
+    gap: 6,
+  },
+  analyticsLegendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  analyticsLegendColor: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+  },
+  analyticsLegendText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  analyticsEmptyText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  analyticsPurchaseRow: {
+    borderBottomWidth: 1,
+    paddingVertical: 7,
+    gap: 2,
+  },
+  analyticsPurchaseName: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  analyticsPurchaseMeta: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   priceResultCard: {
     borderRadius: 12,
