@@ -127,22 +127,37 @@ function asNumberValue(input) {
 
 function normalizeExternalPriceItem(item, barcode) {
   if (!item || typeof item !== "object") return null;
+  const nestedBarcodes = [];
+  if (Array.isArray(item.barcodes)) {
+    nestedBarcodes.push(...item.barcodes);
+  } else if (typeof item.barcodes === "string" && item.barcodes.trim()) {
+    try {
+      const parsed = JSON.parse(item.barcodes);
+      if (Array.isArray(parsed)) nestedBarcodes.push(...parsed);
+    } catch (_error) {
+      nestedBarcodes.push(item.barcodes);
+    }
+  }
+
   const barcodeCandidates = [
     item.barcode,
     item.barkod,
     item.Barcode,
     item.Barkod,
+    item.glavenBarcode,
+    item.GlavenBarcode,
     item.sifra,
     item.Sifra,
     item.code,
     item.Code,
+    ...nestedBarcodes,
   ]
     .map((x) => normalizeBarcode(x))
     .filter(Boolean);
   if (barcodeCandidates.length > 0 && !barcodeCandidates.includes(barcode)) return null;
 
   const name =
-    String(item.name || item.naziv || item.artikl || item.Naziv || item.Artikl || "")
+    String(item.name || item.naziv || item.artikl || item.imeArt || item.Naziv || item.Artikl || item.ImeArt || "")
       .trim() || `Proizvod ${barcode}`;
   const priceNumber =
     asNumberValue(item.price) ??
