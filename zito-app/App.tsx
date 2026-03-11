@@ -293,6 +293,8 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     state_card_linked: "Оваа картичка е веќе поврзана со друг профил.",
     state_card_error: "Грешка при ажурирање на картичка.",
     state_card_service_unavailable: "Сервисот за картичка моментално не е достапен.",
+    state_card_deleted: "Картичката е избришана.",
+    card_delete_button: "Избриши картичка",
     card_points_title: "Поени",
     card_purchases_title: "Купени продукти",
     card_purchases_empty: "Нема пазарувања за приказ.",
@@ -434,6 +436,8 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     state_card_linked: "This card is already linked to another profile.",
     state_card_error: "Could not update card.",
     state_card_service_unavailable: "Loyalty card service is currently unavailable.",
+    state_card_deleted: "Card deleted.",
+    card_delete_button: "Delete card",
     card_points_title: "Points",
     card_purchases_title: "Purchased products",
     card_purchases_empty: "No purchases to display.",
@@ -575,6 +579,8 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     state_card_linked: "Kjo kartele eshte tashme e lidhur me nje profil tjeter.",
     state_card_error: "Nuk mund te perditesoj kartelen.",
     state_card_service_unavailable: "Sherbimi i karteles nuk eshte i disponueshem tani.",
+    state_card_deleted: "Kartela u fshi.",
+    card_delete_button: "Fshi kartelen",
     card_points_title: "Pike",
     card_purchases_title: "Produkte te blera",
     card_purchases_empty: "Nuk ka blerje per t'u shfaqur.",
@@ -716,6 +722,8 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     state_card_linked: "Bu kart baska bir profile bagli.",
     state_card_error: "Kart guncellenemedi.",
     state_card_service_unavailable: "Kart servisi su anda kullanilamiyor.",
+    state_card_deleted: "Kart silindi.",
+    card_delete_button: "Karti sil",
     card_points_title: "Puanlar",
     card_purchases_title: "Satin alinan urunler",
     card_purchases_empty: "Gosterilecek alisveris yok.",
@@ -952,6 +960,20 @@ async function apiPost<T>(baseUrl: string, path: string, body: unknown, token?: 
   if (!res.ok) {
     const err = await res.text();
     throw new Error(err || `POST ${path} failed`);
+  }
+  return (await res.json()) as T;
+}
+
+async function apiDelete<T>(baseUrl: string, path: string, token?: string): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${baseUrl}${path}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || `DELETE ${path} failed`);
   }
   return (await res.json()) as T;
 }
@@ -1655,11 +1677,13 @@ function FlyersScreen({ flyers, onOpenShoppingList }: { flyers: Flyer[]; onOpenS
 function CardScreen({
   card,
   onScanCard,
+  onDeleteCard,
   onLoadPurchases,
   onLoadPoints,
 }: {
   card: CardData;
   onScanCard: (cardNumber: string) => Promise<string>;
+  onDeleteCard: () => Promise<string>;
   onLoadPurchases: () => Promise<PurchaseItem[]>;
   onLoadPoints: () => Promise<number>;
 }) {
@@ -1747,6 +1771,12 @@ function CardScreen({
     setScanStatus(result);
   };
 
+  const handleDeleteCard = async () => {
+    const result = await onDeleteCard();
+    setScanStatus(result);
+    setManualCardInput("");
+  };
+
   if (isScannerOpen) {
     return (
       <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
@@ -1792,6 +1822,11 @@ function CardScreen({
       <Pressable style={[styles.primaryBtn, { marginBottom: 10 }]} onPress={() => void handleManualCardSave()}>
         <Text style={styles.primaryBtnText}>{t("save_profile")}</Text>
       </Pressable>
+      {card.cardNumber ? (
+        <Pressable style={styles.cardDeleteBtn} onPress={() => void handleDeleteCard()}>
+          <Text style={styles.cardDeleteBtnText}>{t("card_delete_button")}</Text>
+        </Pressable>
+      ) : null}
       {scanStatus ? <Text style={[styles.scanStatusText, { color: palette.muted }]}>{scanStatus}</Text> : null}
       <View style={[styles.cardBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <View style={styles.cardBackWrap}>
@@ -2606,6 +2641,7 @@ function MainTabs({
   onClearPurchasedShoppingItems,
   onSetLanguage,
   onScanCard,
+  onDeleteCard,
   onLoadLoyaltyPurchases,
   onLoadLoyaltyPoints,
   onCheckPrice,
@@ -2634,6 +2670,7 @@ function MainTabs({
   onClearPurchasedShoppingItems: () => void;
   onSetLanguage: (language: LanguageCode) => void;
   onScanCard: (cardNumber: string) => Promise<string>;
+  onDeleteCard: () => Promise<string>;
   onLoadLoyaltyPurchases: () => Promise<PurchaseItem[]>;
   onLoadLoyaltyPoints: () => Promise<number>;
   onCheckPrice: (query: string) => Promise<{ product: ProductPrice | null; error: string | null }>;
@@ -2781,6 +2818,7 @@ function MainTabs({
           <CardScreen
             card={card}
             onScanCard={onScanCard}
+            onDeleteCard={onDeleteCard}
             onLoadPurchases={onLoadLoyaltyPurchases}
             onLoadPoints={onLoadLoyaltyPoints}
           />
@@ -3244,6 +3282,18 @@ export default function App() {
     }
   };
 
+  const handleDeleteCard = async (): Promise<string> => {
+    if (!authToken) return t("state_card_error");
+    try {
+      const updated = await apiDelete<CardData>(apiBase, "/me/card", authToken);
+      setCard(updated);
+      setUser((prev) => ({ ...prev, cardNumber: "" }));
+      return t("state_card_deleted");
+    } catch {
+      return t("state_card_error");
+    }
+  };
+
   const handleLoadLoyaltyPurchases = async (): Promise<PurchaseItem[]> => {
     if (!authToken) return [];
     try {
@@ -3435,6 +3485,7 @@ export default function App() {
                 onClearPurchasedShoppingItems={handleClearPurchasedShoppingItems}
                 onSetLanguage={setLanguage}
                 onScanCard={handleScanCard}
+                onDeleteCard={handleDeleteCard}
                 onLoadLoyaltyPurchases={handleLoadLoyaltyPurchases}
                 onLoadLoyaltyPoints={handleLoadLoyaltyPoints}
                 onCheckPrice={handleCheckPrice}
@@ -3613,6 +3664,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   primaryBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  cardDeleteBtn: {
+    backgroundColor: "#b71c1c",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  cardDeleteBtnText: {
     color: "#fff",
     fontSize: 15,
     fontWeight: "800",

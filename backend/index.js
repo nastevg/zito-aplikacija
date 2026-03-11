@@ -1238,6 +1238,22 @@ app.post("/me/card", requireAuth, async (req, res) => {
   }
 });
 
+app.delete("/me/card", requireAuth, async (req, res) => {
+  try {
+    const user = await db.getUserById(req.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const updated = await db.updateUserCardNumber(user.id, "");
+    return res.json({
+      cardNumber: "",
+      barcode: "",
+      qrValue: `ZITO::${updated.id}`,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: String(error) });
+  }
+});
+
 app.get("/loyalty/card", requireAuth, (req, res) => {
   db.getUserById(req.userId).then((user) => {
     if (!user) return res.status(404).json({ error: "User not found" });
