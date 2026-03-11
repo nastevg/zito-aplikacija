@@ -28,6 +28,8 @@ const BACKEND_PUBLIC_URL = (process.env.BACKEND_PUBLIC_URL || "").replace(/\/+$/
 const EXTERNAL_PRICES_API_BASE = String(process.env.EXTERNAL_PRICES_API_BASE || "").trim().replace(/\/+$/, "");
 const EXTERNAL_PRICES_API_PATH = String(process.env.EXTERNAL_PRICES_API_PATH || "/api/artikli").trim() || "/api/artikli";
 const EXTERNAL_PRICES_TIMEOUT_MS = Number(process.env.EXTERNAL_PRICES_TIMEOUT_MS || 9000);
+const PRICE_REFRESH_HOUR_LOCAL = Number(process.env.PRICE_REFRESH_HOUR_LOCAL || 7);
+const PRICE_REFRESH_TIMEZONE = String(process.env.PRICE_REFRESH_TIMEZONE || "Europe/Skopje").trim() || "Europe/Skopje";
 const APK_ASSET_GROUP_DIRS = {
   letoci: path.resolve(__dirname, "..", "zito-app", "assets", "images", "letoci"),
   akcii: path.resolve(__dirname, "..", "zito-app", "assets", "images", "akcii"),
@@ -157,6 +159,50 @@ function toMacedonianCyrillic(input) {
     .split("")
     .map((ch) => charMap[ch] || ch)
     .join("");
+}
+
+function getTzParts(date, timeZone) {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = fmt.formatToParts(date);
+  const get = (type) => Number(parts.find((p) => p.type === type)?.value || 0);
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+  };
+}
+
+function businessDayKey(date, timeZone, refreshHour) {
+  const parts = getTzParts(date, timeZone);
+  let y = parts.year;
+  let m = parts.month;
+  let d = parts.day;
+  if (parts.hour < refreshHour) {
+    const prev = new Date(Date.UTC(y, m - 1, d));
+    prev.setUTCDate(prev.getUTCDate() - 1);
+    y = prev.getUTCFullYear();
+    m = prev.getUTCMonth() + 1;
+    d = prev.getUTCDate();
+  }
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+function isPriceFreshForBusinessDay(updatedAt) {
+  const parsed = new Date(String(updatedAt || ""));
+  if (Number.isNaN(parsed.getTime())) return false;
+  const now = new Date();
+  const refreshHour = Number.isFinite(PRICE_REFRESH_HOUR_LOCAL) ? PRICE_REFRESH_HOUR_LOCAL : 7;
+  const updatedKey = businessDayKey(parsed, PRICE_REFRESH_TIMEZONE, refreshHour);
+  const currentKey = businessDayKey(now, PRICE_REFRESH_TIMEZONE, refreshHour);
+  return updatedKey === currentKey;
 }
 
 function asNumberValue(input) {
@@ -1048,9 +1094,12 @@ app.post("/price/check", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Invalid barcode or query format" });
   }
   try {
+    let localPrice = null;
     if (barcode) {
-      const localPrice = await db.getProductPriceByBarcode(barcode);
-      if (localPrice) return res.json(localPrice);
+      localPrice = await db.getProductPriceByBarcode(barcode);
+      if (localPrice && isPriceFreshForBusinessDay(localPrice.updatedAt)) {
+        return res.json(localPrice);
+      }
     }
 
     const externalPrice = await fetchExternalPrice(query);
@@ -1073,6 +1122,7 @@ app.post("/price/check", requireAuth, async (req, res) => {
       return res.json(externalPrice);
     }
 
+    if (localPrice) return res.json(localPrice);
     return res.status(404).json({ error: "Product not found" });
   } catch (error) {
     return res.status(500).json({ error: String(error) });
