@@ -1444,7 +1444,7 @@ function HomeScreen({
 
   return (
     <SafeAreaView edges={["left", "right", "bottom"]} style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <View style={[styles.homeTopBrandBar, { paddingTop: insets.top }]}>
+      <View style={[styles.homeTopBrandBar, { paddingTop: Math.max(0, insets.top - 18) }]}>
         <Image source={topBrandLogoImage} style={styles.homeTopBrandLogo} resizeMode="contain" />
         <Pressable style={[styles.themeToggleBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={toggleTheme}>
           <Ionicons
@@ -2950,7 +2950,7 @@ function ScreenWrap({
   const tabBarHeight = useBottomTabBarHeight();
   return (
     <SafeAreaView edges={["left", "right", "bottom"]} style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <View style={[styles.topBrandBar, { paddingTop: insets.top }]}>
+      <View style={[styles.topBrandBar, { paddingTop: Math.max(0, insets.top - 18) }]}>
         <Image source={topBrandLogoImage} style={styles.topBrandLogo} resizeMode="contain" />
       </View>
       <ScrollView
@@ -3875,8 +3875,8 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   topBrandLogo: {
-    width: 784,
-    height: 191,
+    width: 640,
+    height: 156,
     marginTop: -19,
   },
   scrollContent: {
@@ -4237,8 +4237,8 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
   },
   homeTopBrandLogo: {
-    width: 784,
-    height: 191,
+    width: 640,
+    height: 156,
     marginTop: -19,
   },
   homeTopFieldWrap: {
