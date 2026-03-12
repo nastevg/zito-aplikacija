@@ -3870,9 +3870,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#00A651",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 24,
+    minHeight: 16,
     paddingHorizontal: 7,
-    paddingBottom: 2,
+    paddingBottom: 0,
   },
   topBrandLogo: {
     width: 640,
@@ -4230,11 +4230,11 @@ const styles = StyleSheet.create({
   },
   homeTopBrandBar: {
     alignSelf: "stretch",
-    minHeight: 30,
+    minHeight: 20,
     backgroundColor: "#00A651",
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: 2,
+    paddingBottom: 0,
   },
   homeTopBrandLogo: {
     width: 640,
