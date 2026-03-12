@@ -3875,8 +3875,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   topBrandLogo: {
-    width: 274,
-    height: 67,
+    width: 603,
+    height: 147,
+    marginTop: -19,
   },
   scrollContent: {
     padding: 18,
@@ -4236,8 +4237,9 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   homeTopBrandLogo: {
-    width: 274,
-    height: 67,
+    width: 603,
+    height: 147,
+    marginTop: -19,
   },
   homeTopFieldWrap: {
     backgroundColor: colors.card,
