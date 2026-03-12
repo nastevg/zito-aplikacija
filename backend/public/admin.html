@@ -177,7 +177,6 @@
           <button type="button" onclick="scrollToSection('sec-notification-create')">Notifications</button>
           <button type="button" onclick="scrollToSection('sec-push')">Push</button>
           <button type="button" onclick="scrollToSection('sec-apk')">APK</button>
-          <button type="button" onclick="scrollToSection('sec-prices')">Prices</button>
           <button type="button" onclick="scrollToSection('sec-logs')">Logs</button>
         </div>
       </div>
@@ -214,28 +213,12 @@
       <button onclick="sendPush()">Send Push</button>
     </div>
 
-    <div class="card full" id="sec-flyers">
-      <div class="section-head">
-        <h3>Flyers</h3>
-        <button onclick="loadFlyers()">Refresh</button>
-      </div>
-      <div id="flyersList"></div>
-    </div>
-
     <div class="card full" id="sec-notifications">
       <div class="section-head">
         <h3>Notifications</h3>
         <button onclick="loadNotifications()">Refresh</button>
       </div>
       <div id="notificationsList"></div>
-    </div>
-
-    <div class="card full" id="sec-prices">
-      <div class="section-head">
-        <h3>Product Prices</h3>
-        <button onclick="loadPrices()">Refresh</button>
-      </div>
-      <div id="pricesList"></div>
     </div>
 
     <div class="card full" id="sec-apk">
@@ -469,6 +452,7 @@
       async function loadFlyers() {
         const rows = await callGet("/admin/flyers");
         if (!rows) return;
+        if (!flyersList) return;
         flyersList.innerHTML = rows.length
           ? rows
               .map(
@@ -512,6 +496,7 @@
       async function loadPrices() {
         const rows = await callGet("/admin/prices?limit=300");
         if (!rows) return;
+        if (!pricesList) return;
         pricesList.innerHTML = rows.length
           ? rows
               .map(
@@ -755,9 +740,7 @@
         galleryFileInput.addEventListener("change", handleGalleryFilePicked);
         notificationFileInput.addEventListener("change", handleNotificationFilePicked);
         homeTopFileInput.addEventListener("change", handleHomeTopFilePicked);
-        await loadFlyers();
         await loadNotifications();
-        await loadPrices();
         await loadApkGallery();
         await loadHomeTopField();
       }
