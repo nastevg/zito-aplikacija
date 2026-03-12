@@ -3063,7 +3063,7 @@ function MainTabs({
         headerShown: false,
         tabBarActiveTintColor: palette.green,
         tabBarInactiveTintColor: palette.muted,
-        tabBarShowLabel: true,
+        tabBarShowLabel: false,
         tabBarStyle: {
           borderTopColor: palette.border,
           backgroundColor: palette.card,
@@ -3087,7 +3087,7 @@ function MainTabs({
           textAlign: "center",
         },
         tabBarIconStyle: {
-          marginTop: 2,
+          marginTop: 0,
         },
         tabBarIcon: ({ color }) => {
           const map: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
@@ -3101,6 +3101,9 @@ function MainTabs({
             Profile: "person",
             More: "ellipsis-horizontal-circle",
           };
+          if (route.name === "Flyers") {
+            return <Text style={{ color, fontSize: 21, fontWeight: "900", lineHeight: 22 }}>%</Text>;
+          }
           if (route.name === "Notifications" && hasUnreadNotices) {
             return (
               <View style={{ opacity: blinkOn ? 1 : 0.22 }}>
