@@ -1308,11 +1308,15 @@ function HomeScreen({
   currentFlyers,
   bestDeals,
   homeTopItem,
+  shoppingItems,
+  onAddShoppingItem,
   onOpenShoppingList,
 }: {
   currentFlyers: CurrentFlyerMock[];
   bestDeals: BestDealItem[];
   homeTopItem: HomeTopItem | null;
+  shoppingItems: ShoppingItem[];
+  onAddShoppingItem: (name: string, quantity: string, note: string) => void;
   onOpenShoppingList: () => void;
 }) {
   const { mode, palette, toggleTheme } = useAppTheme();
@@ -1338,11 +1342,16 @@ function HomeScreen({
   const [cachedPdfUrls, setCachedPdfUrls] = useState<Record<string, string>>({});
   const bestDealRows = useMemo(() => {
     const rows: BestDealItem[][] = [];
-    for (let i = 0; i < bestDeals.length; i += 3) {
-      rows.push(bestDeals.slice(i, i + 3));
+    for (let i = 0; i < bestDeals.length; i += 2) {
+      rows.push(bestDeals.slice(i, i + 2));
     }
     return rows;
   }, [bestDeals]);
+
+  const shoppingSet = useMemo(
+    () => new Set(shoppingItems.map((item) => item.name.trim().toLowerCase()).filter(Boolean)),
+    [shoppingItems],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1530,12 +1539,20 @@ function HomeScreen({
           <View style={styles.bestDealsGrid}>
             {bestDealRows.map((row, idx) => (
               <View key={`best-row-${idx}`} style={styles.bestDealsRow}>
-                {row.map((item) => (
-                  <Pressable
+                {row.map((item) => {
+                  const inList = shoppingSet.has(String(item.title || "").trim().toLowerCase());
+                  return (
+                  <View
                     key={item.id}
                     style={[styles.bestDealCard, { backgroundColor: "#F8F8F8" }]}
-                    onPress={() => void openBestDeal(item)}
                   >
+                    <Pressable
+                      style={styles.bestDealHeartBtn}
+                      onPress={() => onAddShoppingItem(item.title || "Акција", "1", "")}
+                    >
+                      <Ionicons name={inList ? "heart" : "heart-outline"} size={20} color="#0A8F43" />
+                    </Pressable>
+                    <Pressable style={styles.bestDealMainBtn} onPress={() => void openBestDeal(item)}>
                     <View style={styles.bestDealImageWrap}>
                       {item.image ? (
                         <Image source={item.image} style={styles.bestDealImage} resizeMode="contain" />
@@ -1552,14 +1569,13 @@ function HomeScreen({
                       </Text>
                       <View style={styles.bestDealBottomRow}>
                         <View style={styles.bestDealBadgeWrap}>
-                          <Text style={styles.bestDealBadgeTop}>{t("best_deal_super_price")}</Text>
                           <Text style={styles.bestDealBadgePrice}>{item.price || "АКЦИЈА"}</Text>
                         </View>
-                        <Ionicons name="heart-outline" size={23} color="#67B948" />
                       </View>
                     </View>
-                  </Pressable>
-                ))}
+                    </Pressable>
+                  </View>
+                )})}
               </View>
             ))}
           </View>
@@ -3095,6 +3111,8 @@ function MainTabs({
             currentFlyers={currentFlyers}
             bestDeals={bestDeals}
             homeTopItem={homeTopItem}
+            shoppingItems={shoppingItems}
+            onAddShoppingItem={onAddShoppingItem}
             onOpenShoppingList={() => navigation.navigate("Shopping")}
           />
         )}
@@ -4367,18 +4385,36 @@ const styles = StyleSheet.create({
   },
   bestDealsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     gap: 8,
   },
   bestDealCard: {
-    width: "31.8%",
+    width: "48.8%",
     borderRadius: 12,
     padding: 8,
     borderWidth: 1,
     borderColor: "#E0E0E0",
     overflow: "hidden",
-    minHeight: 210,
+    minHeight: 228,
+    position: "relative",
+  },
+  bestDealMainBtn: {
+    flex: 1,
     justifyContent: "space-between",
+  },
+  bestDealHeartBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 3,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DCE9D7",
   },
   bestDealImageWrap: {
     height: 105,
@@ -4415,30 +4451,22 @@ const styles = StyleSheet.create({
     marginTop: 6,
     flexDirection: "row",
     alignItems: "flex-end",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     gap: 6,
   },
   bestDealBadgeWrap: {
-    backgroundColor: "#EF2B2D",
+    backgroundColor: "#0A8F43",
     borderRadius: 4,
     overflow: "hidden",
     minWidth: 58,
-  },
-  bestDealBadgeTop: {
-    backgroundColor: "#FFE100",
-    color: "#232323",
-    fontSize: 10,
-    fontWeight: "900",
-    paddingHorizontal: 4,
-    paddingVertical: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
   },
   bestDealBadgePrice: {
     color: "#FFFFFF",
-    fontSize: 20,
-    lineHeight: 22,
+    fontSize: 18,
+    lineHeight: 20,
     fontWeight: "900",
-    paddingHorizontal: 5,
-    paddingVertical: 1,
   },
   flyerCard: {
     flex: 1,
