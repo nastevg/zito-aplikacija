@@ -174,7 +174,7 @@
         <h1>Zito Admin Panel</h1>
         <div class="nav-tabs">
           <button type="button" onclick="scrollToSection('sec-auth')">Auth</button>
-          <button type="button" onclick="scrollToSection('sec-content')">Content</button>
+          <button type="button" onclick="scrollToSection('sec-notification-create')">Notifications</button>
           <button type="button" onclick="scrollToSection('sec-push')">Push</button>
           <button type="button" onclick="scrollToSection('sec-apk')">APK</button>
           <button type="button" onclick="scrollToSection('sec-prices')">Prices</button>
@@ -189,14 +189,6 @@
         <button type="button" onclick="saveToken()">Save token</button>
         <button type="button" class="btn-danger" onclick="logout()">Logout</button>
       </div>
-    </div>
-
-    <div class="card" id="sec-content">
-      <h3>Add Flyer</h3>
-      <input id="flyerTitle" placeholder="Title" />
-      <input id="flyerPrice" placeholder="Price (e.g. 89 den.)" />
-      <input id="flyerImage" placeholder="Flyer URL (optional: pdf/web/image)" />
-      <button onclick="addFlyer()">Save Flyer</button>
     </div>
 
     <div class="card" id="sec-notification-create">
@@ -251,11 +243,17 @@
         <h3>APK Visual Catalog (mockup)</h3>
         <button onclick="loadApkGallery()">Refresh</button>
       </div>
+    </div>
+
+    <div class="card full" id="sec-apk-flyers">
       <h4>Тековни летоци</h4>
       <div class="gallery-actions">
         <button type="button" onclick="openNewUpload('letoci')">Add new (летоци)</button>
       </div>
       <div id="apkCurrentFlyers" class="gallery-grid"></div>
+    </div>
+
+    <div class="card full" id="sec-apk-deals">
       <h4 style="margin-top: 16px">Најдобри акции</h4>
       <div class="gallery-actions">
         <button type="button" onclick="openNewUpload('akcii')">Add new (акции)</button>
