@@ -913,6 +913,7 @@ function useI18n() {
 }
 
 const logoImage = require("./assets/images/logo.png");
+const topBrandLogoImage = require("./assets/images/zito_logo.png");
 const tiltedBadgeImage = require("./assets/images/sekogasverninavas_upscaled-removebg-preview.png");
 const bannerImage = require("./assets/images/home_banner.png");
 const flyersImage = require("./assets/images/flyers_grid.png");
@@ -1442,12 +1443,15 @@ function HomeScreen({
   };
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={[styles.screen, { backgroundColor: palette.bg }]}>
       <ScrollView
         contentContainerStyle={[styles.homeScrollContent, { paddingBottom: insets.bottom + 84 }]}
         showsVerticalScrollIndicator={false}
       >
       <View style={styles.homeFixedWrap}>
+        <View style={[styles.homeTopBrandBar, { paddingTop: insets.top }]}>
+          <Image source={topBrandLogoImage} style={styles.homeTopBrandLogo} resizeMode="contain" />
+        </View>
         <Pressable style={[styles.themeToggleBtn, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={toggleTheme}>
           <Ionicons
             name={mode === "light" ? "moon-outline" : "sunny-outline"}
@@ -1455,9 +1459,6 @@ function HomeScreen({
             color={palette.green}
           />
         </Pressable>
-        <View style={styles.homeTopBrandBar}>
-          <Text style={styles.homeTopBrandText}>{t("tag_zito")}</Text>
-        </View>
         {homeTopItem?.imageUrl ? (
           <View style={[styles.homeTopFieldWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Image
@@ -2945,12 +2946,12 @@ function ScreenWrap({
   subtitleStyle?: StyleProp<TextStyle>;
 }) {
   const { palette } = useAppTheme();
-  const { t } = useI18n();
+  const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <View style={styles.topBrandBar}>
-        <Text style={styles.topBrandText}>{t("tag_zito")}</Text>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={[styles.screen, { backgroundColor: palette.bg }]}>
+      <View style={[styles.topBrandBar, { paddingTop: insets.top }]}>
+        <Image source={topBrandLogoImage} style={styles.topBrandLogo} resizeMode="contain" />
       </View>
       <ScrollView
         contentContainerStyle={[
@@ -3790,7 +3791,7 @@ export default function App() {
     <ThemeContext.Provider value={{ mode: themeMode, palette, toggleTheme }}>
       <SafeAreaProvider>
       <NavigationContainer>
-        <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
+        <StatusBar style="light" backgroundColor="#00A651" />
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthBootstrapping ? (
           <RootStack.Screen name="Login">
@@ -3869,15 +3870,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#00A651",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 66,
+    minHeight: 72,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingBottom: 8,
   },
-  topBrandText: {
-    color: "#FFFFFF",
-    fontSize: 34,
-    fontWeight: "900",
-    letterSpacing: 1.4,
+  topBrandLogo: {
+    width: 168,
+    height: 42,
   },
   scrollContent: {
     padding: 18,
@@ -4210,7 +4209,7 @@ const styles = StyleSheet.create({
   },
   homeFixedWrap: {
     paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingTop: 0,
     gap: 10,
   },
   homeScrollContent: {
@@ -4219,7 +4218,7 @@ const styles = StyleSheet.create({
   themeToggleBtn: {
     position: "absolute",
     right: 16,
-    top: 8,
+    top: 10,
     width: 34,
     height: 34,
     borderRadius: 10,
@@ -4229,19 +4228,18 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   homeTopBrandBar: {
+    marginHorizontal: -16,
     alignSelf: "stretch",
-    minHeight: 56,
-    borderRadius: 12,
+    minHeight: 72,
     backgroundColor: "#00A651",
     alignItems: "center",
     justifyContent: "center",
+    paddingBottom: 8,
     marginBottom: 4,
   },
-  homeTopBrandText: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "900",
-    letterSpacing: 1.2,
+  homeTopBrandLogo: {
+    width: 168,
+    height: 42,
   },
   homeTopFieldWrap: {
     backgroundColor: colors.card,
