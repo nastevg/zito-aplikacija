@@ -1455,7 +1455,9 @@ function HomeScreen({
             color={palette.green}
           />
         </Pressable>
-        <Image source={logoImage} style={styles.homeTopLogo} resizeMode="contain" />
+        <View style={styles.homeTopBrandBar}>
+          <Text style={styles.homeTopBrandText}>{t("tag_zito")}</Text>
+        </View>
         {homeTopItem?.imageUrl ? (
           <View style={[styles.homeTopFieldWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Image
@@ -4226,11 +4228,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 5,
   },
-  homeTopLogo: {
-    alignSelf: "center",
-    width: 120,
-    height: 48,
+  homeTopBrandBar: {
+    alignSelf: "stretch",
+    minHeight: 56,
+    borderRadius: 12,
+    backgroundColor: "#00A651",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 4,
+  },
+  homeTopBrandText: {
+    color: "#FFFFFF",
+    fontSize: 30,
+    fontWeight: "900",
+    letterSpacing: 1.2,
   },
   homeTopFieldWrap: {
     backgroundColor: colors.card,
