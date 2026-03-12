@@ -913,7 +913,7 @@ function useI18n() {
 }
 
 const logoImage = require("./assets/images/logo.png");
-const topBrandLogoImage = require("./assets/images/zito_logo.png");
+const topBrandLogoImage = require("./assets/images/logo.png");
 const tiltedBadgeImage = require("./assets/images/sekogasverninavas_upscaled-removebg-preview.png");
 const bannerImage = require("./assets/images/home_banner.png");
 const flyersImage = require("./assets/images/flyers_grid.png");
