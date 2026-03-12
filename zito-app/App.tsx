@@ -11,6 +11,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   Linking,
@@ -2217,27 +2218,34 @@ function PriceCheckScreen({
   const [barcodeInput, setBarcodeInput] = useState("");
   const [status, setStatus] = useState("");
   const [product, setProduct] = useState<ProductPrice | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   const lookup = async (rawQuery: string) => {
+    if (isChecking) return;
     const query = rawQuery.trim();
     if (query.length < 2) {
       setStatus(t("price_invalid"));
       setProduct(null);
       return;
     }
-    const result = await onCheckPrice(query);
-    if (result.error) {
-      setStatus(result.error);
-      setProduct(null);
-      return;
+    setIsChecking(true);
+    try {
+      const result = await onCheckPrice(query);
+      if (result.error) {
+        setStatus(result.error);
+        setProduct(null);
+        return;
+      }
+      if (!result.product) {
+        setStatus(t("price_not_found"));
+        setProduct(null);
+        return;
+      }
+      setStatus("");
+      setProduct(result.product);
+    } finally {
+      setIsChecking(false);
     }
-    if (!result.product) {
-      setStatus(t("price_not_found"));
-      setProduct(null);
-      return;
-    }
-    setStatus("");
-    setProduct(result.product);
   };
 
   const handleOpenScanner = async () => {
@@ -2306,9 +2314,26 @@ function PriceCheckScreen({
         style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.border, color: palette.text }]}
         keyboardType="default"
       />
-      <Pressable style={[styles.loginBtn, { marginTop: 0 }]} onPress={() => void lookup(barcodeInput)}>
-        <Ionicons name="pricetag-outline" size={20} color={colors.green} />
-        <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("price_check_btn")}</Text>
+      <Pressable
+        disabled={isChecking}
+        style={({ pressed }) => [
+          styles.loginBtn,
+          {
+            marginTop: 0,
+            opacity: isChecking ? 0.75 : pressed ? 0.85 : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }],
+          },
+        ]}
+        onPress={() => void lookup(barcodeInput)}
+      >
+        {isChecking ? (
+          <ActivityIndicator size="small" color={colors.green} />
+        ) : (
+          <Ionicons name="pricetag-outline" size={20} color={colors.green} />
+        )}
+        <Text style={[styles.loginBtnText, { color: colors.green }]}>
+          {isChecking ? `${t("price_check_btn")}...` : t("price_check_btn")}
+        </Text>
       </Pressable>
       {status ? <Text style={[styles.scanStatusText, { color: palette.muted }]}>{status}</Text> : null}
 
