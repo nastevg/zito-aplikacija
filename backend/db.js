@@ -84,6 +84,82 @@ function splitSqliteStatements(sql) {
     .filter(Boolean);
 }
 
+async function ensurePostgresVoucherSchema(q) {
+  await q(`CREATE TABLE IF NOT EXISTS vouchers (
+    id TEXT PRIMARY KEY,
+    barcode TEXT NOT NULL,
+    amount NUMERIC NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'MKD',
+    status TEXT NOT NULL DEFAULT 'free',
+    source_file TEXT NOT NULL DEFAULT '',
+    import_batch_id TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+  await q("ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'MKD'");
+  await q("ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'free'");
+  await q("ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS source_file TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS import_batch_id TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS created_at TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS updated_at TEXT NOT NULL DEFAULT ''");
+  await q("CREATE UNIQUE INDEX IF NOT EXISTS vouchers_barcode_unique_idx ON vouchers(barcode)");
+
+  await q(`CREATE TABLE IF NOT EXISTS voucher_assignments (
+    id TEXT PRIMARY KEY,
+    voucher_id TEXT NOT NULL REFERENCES vouchers(id),
+    user_id TEXT,
+    card_number TEXT,
+    assignment_type TEXT NOT NULL,
+    amount_snapshot NUMERIC NOT NULL DEFAULT 0,
+    assigned_by TEXT NOT NULL DEFAULT 'system',
+    assigned_at TEXT NOT NULL DEFAULT '',
+    valid_from TEXT,
+    expires_at TEXT,
+    used_at TEXT,
+    used_reference TEXT,
+    period_key TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'active'
+  )`);
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS user_id TEXT");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS card_number TEXT");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS assignment_type TEXT NOT NULL DEFAULT 'manual_admin'");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS amount_snapshot NUMERIC NOT NULL DEFAULT 0");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS assigned_by TEXT NOT NULL DEFAULT 'system'");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS assigned_at TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS valid_from TEXT");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS expires_at TEXT");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS used_at TEXT");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS used_reference TEXT");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS period_key TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE voucher_assignments ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'");
+  await q("CREATE UNIQUE INDEX IF NOT EXISTS voucher_assignments_voucher_id_unique_idx ON voucher_assignments(voucher_id)");
+
+  await q(`CREATE TABLE IF NOT EXISTS voucher_rules (
+    key TEXT PRIMARY KEY,
+    value_text TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT ''
+  )`);
+  await q("ALTER TABLE voucher_rules ADD COLUMN IF NOT EXISTS value_text TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE voucher_rules ADD COLUMN IF NOT EXISTS updated_at TEXT NOT NULL DEFAULT ''");
+
+  await q(`CREATE TABLE IF NOT EXISTS voucher_events (
+    id TEXT PRIMARY KEY,
+    voucher_id TEXT NOT NULL REFERENCES vouchers(id),
+    assignment_id TEXT,
+    event_type TEXT NOT NULL,
+    actor_type TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    meta_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT ''
+  )`);
+  await q("ALTER TABLE voucher_events ADD COLUMN IF NOT EXISTS assignment_id TEXT");
+  await q("ALTER TABLE voucher_events ADD COLUMN IF NOT EXISTS event_type TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE voucher_events ADD COLUMN IF NOT EXISTS actor_type TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE voucher_events ADD COLUMN IF NOT EXISTS actor_id TEXT NOT NULL DEFAULT ''");
+  await q("ALTER TABLE voucher_events ADD COLUMN IF NOT EXISTS meta_json TEXT NOT NULL DEFAULT '{}'");
+  await q("ALTER TABLE voucher_events ADD COLUMN IF NOT EXISTS created_at TEXT NOT NULL DEFAULT ''");
+}
+
 function dbFactory() {
   const pgUrl = process.env.DATABASE_URL;
   if (pgUrl) return createPgStore(pgUrl);
@@ -534,6 +610,7 @@ function createPgStore(connectionString) {
           throw error;
         }
       }
+      await ensurePostgresVoucherSchema(q);
     },
     async getUserByEmail(email) {
       const r = await q("SELECT * FROM users WHERE lower(email) = lower($1) LIMIT 1", [email]);
