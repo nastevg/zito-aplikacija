@@ -594,6 +594,7 @@ function createPgStore(connectionString) {
     type: "postgres",
     async init() {
       await q("CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY)");
+      await ensurePostgresVoucherSchema(q);
       const appliedRows = await q("SELECT version FROM schema_migrations");
       const applied = new Set(appliedRows.rows.map((r) => r.version));
       const migrations = readMigrationFiles("postgres");
@@ -610,7 +611,6 @@ function createPgStore(connectionString) {
           throw error;
         }
       }
-      await ensurePostgresVoucherSchema(q);
     },
     async getUserByEmail(email) {
       const r = await q("SELECT * FROM users WHERE lower(email) = lower($1) LIMIT 1", [email]);
