@@ -1,5 +1,32 @@
 # Latest Changes
 
+## March 13, 2026 - [Loyalty/Vouchers] Voucher module restored and expanded
+- Added full voucher management flow across backend, CMS, and mobile app:
+  - Excel import of one-time voucher barcodes with amounts from `.xls/.xlsx`
+  - duplicate detection in file and database
+  - voucher inventory states: `free`, `assigned`, `used`, `expired`, `void`
+- CMS/Admin additions:
+  - voucher import panel
+  - voucher rules editor for:
+    - signup voucher
+    - monthly turnover over `5000`
+    - monthly turnover over `10000`
+  - manual voucher assignment by loyalty card number
+  - manual voucher redeem flow with audit trail
+- Automatic voucher assignment:
+  - new registrations can receive a signup voucher based on CMS rule
+  - users can receive monthly vouchers based on loyalty turnover thresholds
+  - duplicate monthly assignments are prevented per rule type and month period
+- Mobile app additions:
+  - new `Ваучери` section available from `Повеќе`
+  - users can view `active`, `used`, and `expired` vouchers
+  - each item shows barcode, amount, and validity/usage info
+- Control and audit:
+  - each voucher can be redeemed only once
+  - assignment and redeem events are stored in voucher audit history
+- Delivery:
+  - pushed to `main` (commit `7b20920`)
+
 ## March 13, 2026 - [UI/Light theme] White backgrounds kept, green header preserved
 - Updated mobile light theme surfaces to use white backgrounds instead of tinted light green/gray blocks:
   - inputs
