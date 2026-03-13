@@ -243,7 +243,7 @@ const LIGHT_THEME: ThemePalette = {
   text: "#111111",
   muted: "#505050",
   border: "#D7D7D7",
-  inputBg: "#FCFCFC",
+  inputBg: "#FFFFFF",
 };
 
 const DARK_THEME: ThemePalette = {
@@ -1549,7 +1549,7 @@ function HomeScreen({
                   return (
                   <View
                     key={item.id}
-                    style={[styles.bestDealCard, { backgroundColor: "#F8F8F8" }]}
+                    style={[styles.bestDealCard, { backgroundColor: "#FFFFFF" }]}
                   >
                     <Pressable
                       style={styles.bestDealHeartBtn}
@@ -4094,7 +4094,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   loginBtn: {
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#FFFFFF",
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
@@ -4180,7 +4180,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickListBtn: {
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#FFFFFF",
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
@@ -4235,7 +4235,7 @@ const styles = StyleSheet.create({
   },
   langChipActive: {
     borderColor: colors.green,
-    backgroundColor: "#E8F7EE",
+    backgroundColor: "#FFFFFF",
   },
   langChipText: {
     color: colors.gray,
@@ -4343,7 +4343,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#E0E0E0",
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
@@ -4886,7 +4886,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   barcodeWrap: {
-    backgroundColor: "#FCFCFC",
+    backgroundColor: "#FFFFFF",
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
@@ -4940,7 +4940,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#E0E0E0",
-    backgroundColor: "#F7F7F7",
+    backgroundColor: "#FFFFFF",
   },
   notificationPdfCard: {
     marginTop: 8,
@@ -4951,7 +4951,7 @@ const styles = StyleSheet.create({
     position: "relative",
     borderWidth: 1,
     borderColor: "#E0E0E0",
-    backgroundColor: "#F7F7F7",
+    backgroundColor: "#FFFFFF",
   },
   notificationPdfFallback: {
     flex: 1,
@@ -5024,12 +5024,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "#B8E5C7",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
     gap: 6,
-    backgroundColor: "#F3FBF6",
+    backgroundColor: "#FFFFFF",
   },
   locationMapBtnText: {
     color: colors.green,
