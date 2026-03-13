@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="mk">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zito Admin</title>
+    <title>???? ?????</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -171,137 +171,137 @@
   <body>
     <div class="page">
       <div class="topbar">
-        <h1>Zito Admin Panel</h1>
+        <h1>???? ????? ?????</h1>
         <div class="nav-tabs">
-          <button type="button" onclick="scrollToSection('sec-auth')">Auth</button>
-          <button type="button" onclick="scrollToSection('sec-notification-create')">Notifications</button>
-          <button type="button" onclick="scrollToSection('sec-push')">Push</button>
+          <button type="button" onclick="scrollToSection('sec-auth')">??????</button>
+          <button type="button" onclick="scrollToSection('sec-notification-create')">???????????</button>
+          <button type="button" onclick="scrollToSection('sec-push')">???</button>
           <button type="button" onclick="scrollToSection('sec-apk')">APK</button>
-          <button type="button" onclick="scrollToSection('sec-vouchers')">Vouchers</button>
-          <button type="button" onclick="scrollToSection('sec-logs')">Logs</button>
+          <button type="button" onclick="scrollToSection('sec-vouchers')">???????</button>
+          <button type="button" onclick="scrollToSection('sec-logs')">??????</button>
         </div>
       </div>
       <div class="split">
     <div class="card" id="sec-auth">
-      <label>Admin token</label>
-      <input id="token" value="" placeholder="Enter admin token from environment" />
+      <label>????? ?????</label>
+      <input id="token" value="" placeholder="????? ????? ????? ?? environment" />
       <div class="token-actions">
-        <button type="button" onclick="saveToken()">Save token</button>
-        <button type="button" class="btn-danger" onclick="logout()">Logout</button>
+        <button type="button" onclick="saveToken()">??????? ?????</button>
+        <button type="button" class="btn-danger" onclick="logout()">??????</button>
       </div>
     </div>
 
     <div class="card" id="sec-notification-create">
-      <h3>Notifications</h3>
+      <h3>???????????</h3>
       <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 10px; margin-bottom: 10px">
-        <strong>Text message</strong>
-        <input id="noteTitle" placeholder="Title" />
-        <input id="noteBody" placeholder="Body" />
-        <button onclick="addNotification()">Save text notification</button>
+        <strong>?????????? ??????</strong>
+        <input id="noteTitle" placeholder="??????" />
+        <input id="noteBody" placeholder="????????" />
+        <button onclick="addNotification()">??????? ?????????? ???????????</button>
       </div>
       <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 10px">
-        <strong>Upload image/PDF</strong>
-        <input id="noteMediaTitle" placeholder="Title (optional)" />
-        <input id="noteMediaBody" placeholder="Body (optional)" />
-        <button type="button" onclick="openNotificationUpload()">Upload file</button>
+        <strong>??????? ?????/PDF</strong>
+        <input id="noteMediaTitle" placeholder="?????? (??????????)" />
+        <input id="noteMediaBody" placeholder="???????? (??????????)" />
+        <button type="button" onclick="openNotificationUpload()">??????? ????</button>
       </div>
     </div>
 
     <div class="card" id="sec-push">
-      <h3>Push Broadcast</h3>
-      <input id="pushTitle" placeholder="Title" />
-      <input id="pushBody" placeholder="Body" />
-      <button onclick="sendPush()">Send Push</button>
+      <h3>??? ?????? ?? ????</h3>
+      <input id="pushTitle" placeholder="??????" />
+      <input id="pushBody" placeholder="????????" />
+      <button onclick="sendPush()">??????? ???</button>
     </div>
 
     <div class="card full" id="sec-notifications">
       <div class="section-head">
-        <h3>Notifications</h3>
-        <button onclick="loadNotifications()">Refresh</button>
+        <h3>???????????</h3>
+        <button onclick="loadNotifications()">??????</button>
       </div>
       <div id="notificationsList"></div>
     </div>
 
     <div class="card full" id="sec-apk">
       <div class="section-head">
-        <h3>APK Visual Catalog (mockup)</h3>
-        <button onclick="loadApkGallery()">Refresh</button>
+        <h3>APK ???????? ???????</h3>
+        <button onclick="loadApkGallery()">??????</button>
       </div>
     </div>
 
     <div class="card full" id="sec-apk-flyers">
-      <h4>Тековни летоци</h4>
+      <h4>??????? ??????</h4>
       <div class="gallery-actions">
-        <button type="button" onclick="openNewUpload('letoci')">Add new (летоци)</button>
+        <button type="button" onclick="openNewUpload('letoci')">????? ???? (??????)</button>
       </div>
       <div id="apkCurrentFlyers" class="gallery-grid"></div>
     </div>
 
     <div class="card full" id="sec-apk-deals">
-      <h4 style="margin-top: 16px">Најдобри акции</h4>
+      <h4 style="margin-top: 16px">???????? ?????</h4>
       <div class="gallery-actions">
-        <button type="button" onclick="openNewUpload('akcii')">Add new (акции)</button>
+        <button type="button" onclick="openNewUpload('akcii')">????? ???? (?????)</button>
       </div>
       <div id="apkBestDeals" class="gallery-grid"></div>
     </div>
 
     <div class="card full" id="sec-home-top">
       <div class="section-head">
-        <h3>Home Top Field (above flyers)</h3>
-        <button onclick="loadHomeTopField()">Refresh</button>
+        <h3>????? ???? ?? ??????? (??? ??????)</h3>
+        <button onclick="loadHomeTopField()">??????</button>
       </div>
       <div class="gallery-actions">
-        <button type="button" onclick="openHomeTopUpload()">Upload image</button>
-        <button type="button" class="btn-danger" onclick="deleteHomeTopField()">Delete</button>
+        <button type="button" onclick="openHomeTopUpload()">??????? ?????</button>
+        <button type="button" class="btn-danger" onclick="deleteHomeTopField()">???????</button>
       </div>
       <div id="homeTopFieldPreview" class="gallery-grid"></div>
     </div>
 
     <div class="card full" id="sec-vouchers">
       <div class="section-head">
-        <h3>Voucher Import</h3>
-        <button type="button" onclick="loadVoucherSummary(); loadVoucherList()">Refresh</button>
+        <h3>???? ?? ???????</h3>
+        <button type="button" onclick="loadVoucherSummary(); loadVoucherList()">??????</button>
       </div>
       <div class="gallery-actions">
-        <button type="button" onclick="openVoucherImport()">Upload Excel (.xls/.xlsx)</button>
+        <button type="button" onclick="openVoucherImport()">??????? Excel (.xls/.xlsx)</button>
       </div>
       <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 12px; margin-bottom: 12px">
-        <strong>Manual assignment by loyalty card</strong>
-        <input id="voucherAssignCardNumber" placeholder="Loyalty card number" />
-        <input id="voucherAssignBarcode" placeholder="Voucher barcode (optional - leave empty for first free voucher)" />
-        <input id="voucherAssignValidDays" type="number" min="1" max="3650" value="30" placeholder="Validity days" />
-        <button type="button" onclick="assignVoucherManually()">Assign voucher</button>
+        <strong>????? ?????????? ?? loyalty ????????</strong>
+        <input id="voucherAssignCardNumber" placeholder="???? ?? loyalty ????????" />
+        <input id="voucherAssignBarcode" placeholder="?????? ?? ?????? (?????????? - ?????? ?? ?????? ????????)" />
+        <input id="voucherAssignValidDays" type="number" min="1" max="3650" value="30" placeholder="?????? ?? ???????" />
+        <button type="button" onclick="assignVoucherManually()">?????? ??????</button>
       </div>
       <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 12px; margin-bottom: 12px">
-        <strong>Redeem voucher</strong>
-        <input id="voucherRedeemBarcode" placeholder="Voucher barcode" />
-        <input id="voucherRedeemCardNumber" placeholder="Loyalty card number (optional validation)" />
-        <input id="voucherRedeemReference" placeholder="Reference / receipt / note (optional)" />
-        <button type="button" onclick="redeemVoucher()">Redeem voucher</button>
+        <strong>????????? ??????</strong>
+        <input id="voucherRedeemBarcode" placeholder="?????? ?? ??????" />
+        <input id="voucherRedeemCardNumber" placeholder="???? ?? loyalty ???????? (?????????? ????????)" />
+        <input id="voucherRedeemReference" placeholder="????????? / ?????? / ??????? (??????????)" />
+        <button type="button" onclick="redeemVoucher()">????????? ??????</button>
       </div>
       <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 12px; margin-bottom: 12px">
-        <strong>Voucher rules</strong>
-        <div class="meta" style="margin: 8px 0 6px 0">Signup voucher</div>
-        <label><input id="ruleSignupEnabled" type="checkbox" style="width:auto;margin-right:8px" /> Enable signup voucher</label>
-        <input id="ruleSignupAmount" type="number" min="0" step="0.01" placeholder="Signup voucher amount" />
-        <input id="ruleSignupValidDays" type="number" min="1" max="3650" placeholder="Signup voucher validity days" />
-        <div class="meta" style="margin: 8px 0 6px 0">Monthly turnover > 5000</div>
-        <label><input id="ruleMonthly5000Enabled" type="checkbox" style="width:auto;margin-right:8px" /> Enable 5000 rule</label>
-        <input id="ruleMonthly5000Amount" type="number" min="0" step="0.01" placeholder="Voucher amount for >5000" />
-        <input id="ruleMonthly5000ValidDays" type="number" min="1" max="3650" placeholder="Validity days for >5000" />
-        <div class="meta" style="margin: 8px 0 6px 0">Monthly turnover > 10000</div>
-        <label><input id="ruleMonthly10000Enabled" type="checkbox" style="width:auto;margin-right:8px" /> Enable 10000 rule</label>
-        <input id="ruleMonthly10000Amount" type="number" min="0" step="0.01" placeholder="Voucher amount for >10000" />
-        <input id="ruleMonthly10000ValidDays" type="number" min="1" max="3650" placeholder="Validity days for >10000" />
-        <button type="button" onclick="saveVoucherRules()">Save voucher rules</button>
+        <strong>??????? ?? ???????</strong>
+        <div class="meta" style="margin: 8px 0 6px 0">?????? ??? ????????????</div>
+        <label><input id="ruleSignupEnabled" type="checkbox" style="width:auto;margin-right:8px" /> ???????? ?????? ??? ????????????</label>
+        <input id="ruleSignupAmount" type="number" min="0" step="0.01" placeholder="????? ?? ?????? ??? ????????????" />
+        <input id="ruleSignupValidDays" type="number" min="1" max="3650" placeholder="?????? ?? ??????? ?? ????????????" />
+        <div class="meta" style="margin: 8px 0 6px 0">??????? ?????? > 5000</div>
+        <label><input id="ruleMonthly5000Enabled" type="checkbox" style="width:auto;margin-right:8px" /> ???????? ??????? ?? 5000</label>
+        <input id="ruleMonthly5000Amount" type="number" min="0" step="0.01" placeholder="????? ?? ?????? ?? >5000" />
+        <input id="ruleMonthly5000ValidDays" type="number" min="1" max="3650" placeholder="?????? ?? ??????? ?? >5000" />
+        <div class="meta" style="margin: 8px 0 6px 0">??????? ?????? > 10000</div>
+        <label><input id="ruleMonthly10000Enabled" type="checkbox" style="width:auto;margin-right:8px" /> ???????? ??????? ?? 10000</label>
+        <input id="ruleMonthly10000Amount" type="number" min="0" step="0.01" placeholder="????? ?? ?????? ?? >10000" />
+        <input id="ruleMonthly10000ValidDays" type="number" min="1" max="3650" placeholder="?????? ?? ??????? ?? >10000" />
+        <button type="button" onclick="saveVoucherRules()">??????? ???????</button>
       </div>
-      <div id="voucherSummary" class="meta" style="margin-bottom: 12px">No voucher data loaded.</div>
+      <div id="voucherSummary" class="meta" style="margin-bottom: 12px">???? ??????? ???????? ?? ???????.</div>
       <div id="voucherList"></div>
     </div>
 
       </div>
     <div id="sec-logs">
-      <pre id="out" style="margin-bottom: 14px">Ready.</pre>
+      <pre id="out" style="margin-bottom: 14px">??????????.</pre>
     </div>
     </div>
     <input id="galleryFileInput" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display: none" />
@@ -374,17 +374,17 @@
       function saveToken() {
         const value = tokenInput.value.trim();
         if (!value) {
-          out.textContent = "Admin token is empty.";
+          out.textContent = "????? ??????? ? ??????.";
           return;
         }
         localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, value);
-        out.textContent = "Admin token saved in this browser.";
+        out.textContent = "????? ??????? ? ??????? ?? ???? ???????????.";
       }
 
       function logout() {
         localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         tokenInput.value = "";
-        out.textContent = "Saved admin token removed.";
+        out.textContent = "?????????? ????? ????? ? ?????????.";
       }
 
       async function call(path, body) {
@@ -475,7 +475,7 @@
           const allowedMime = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
           const allowedExt = ["png", "jpg", "jpeg", "webp", "pdf"];
           if (!allowedMime.includes(mimeType) && !allowedExt.includes(ext)) {
-            out.textContent = "Only PNG/JPG/WEBP/PDF files are supported.";
+            out.textContent = "????????? ?? ???? PNG/JPG/WEBP/PDF ???????.";
             return;
           }
 
@@ -498,7 +498,7 @@
             await loadNotifications();
           }
         } catch (error) {
-          out.textContent = String(error?.message || error || "Notification upload failed.");
+          out.textContent = String(error?.message || error || "????????????? ?? ??????????? ?? ?????.");
         } finally {
           notificationFileInput.value = "";
         }
@@ -525,11 +525,11 @@
                 <div class="meta">ID: ${escapeHtml(x.id)}</div>
                 ${x.image ? `<div class="meta">URL: <a href="${escapeHtml(x.image)}" target="_blank" rel="noopener noreferrer">${escapeHtml(x.image)}</a></div>` : ""}
               </div>
-              <button class="btn-danger" onclick="deleteFlyer('${escapeHtml(x.id)}')">Delete</button>
+              <button class="btn-danger" onclick="deleteFlyer('${escapeHtml(x.id)}')">???????</button>
             </div>`,
               )
               .join("")
-          : "<div class='meta'>No flyers</div>";
+          : "<div class='meta'>???? ??????</div>";
       }
 
       async function loadNotifications() {
@@ -543,16 +543,16 @@
               <div>
                 <div><strong>${escapeHtml(x.title)}</strong></div>
                 ${x.body ? `<div>${escapeHtml(x.body)}</div>` : ""}
-                ${x.mediaUrl ? `<div class="meta">Media: <a href="${escapeHtml(x.mediaUrl)}" target="_blank" rel="noopener noreferrer">Open file</a></div>` : ""}
-                ${x.thumbnailUrl ? `<div class="meta">Thumbnail: <a href="${escapeHtml(x.thumbnailUrl)}" target="_blank" rel="noopener noreferrer">Open thumbnail</a></div>` : ""}
-                <div class="meta">Kind: ${escapeHtml(x.kind || "text")}</div>
+                ${x.mediaUrl ? `<div class="meta">??????: <a href="${escapeHtml(x.mediaUrl)}" target="_blank" rel="noopener noreferrer">?????? ????</a></div>` : ""}
+                ${x.thumbnailUrl ? `<div class="meta">????????: <a href="${escapeHtml(x.thumbnailUrl)}" target="_blank" rel="noopener noreferrer">?????? ????????</a></div>` : ""}
+                <div class="meta">???: ${escapeHtml(x.kind || "text")}</div>
                 <div class="meta">ID: ${escapeHtml(x.id)}</div>
               </div>
-              <button class="btn-danger" onclick="deleteNotification('${escapeHtml(x.id)}')">Delete</button>
+              <button class="btn-danger" onclick="deleteNotification('${escapeHtml(x.id)}')">???????</button>
             </div>`,
               )
               .join("")
-          : "<div class='meta'>No notifications</div>";
+          : "<div class='meta'>???? ???????????</div>";
       }
 
       async function loadPrices() {
@@ -566,13 +566,13 @@
             <div class="row">
               <div>
                 <div><strong>${escapeHtml(x.name)}</strong> - ${escapeHtml(x.price)} ${escapeHtml(x.currency || "")}</div>
-                <div class="meta">Barcode: ${escapeHtml(x.barcode)}${x.unit ? ` | Unit: ${escapeHtml(x.unit)}` : ""}</div>
+                <div class="meta">??????: ${escapeHtml(x.barcode)}${x.unit ? ` | ???????: ${escapeHtml(x.unit)}` : ""}</div>
               </div>
-              <button class="btn-danger" onclick="deletePrice('${escapeHtml(x.barcode)}')">Delete</button>
+              <button class="btn-danger" onclick="deletePrice('${escapeHtml(x.barcode)}')">???????</button>
             </div>`,
               )
               .join("")
-          : "<div class='meta'>No product prices</div>";
+          : "<div class='meta'>???? ???? ?? ?????????</div>";
       }
 
       function renderGallery(target, items) {
@@ -590,7 +590,7 @@
                     : `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.label)}" loading="lazy"
                         onclick="openReplaceUpload('${escapeHtml(item.group || "")}','${escapeHtml(item.file)}')" />`;
                   const openPdfBtn = isPdf
-                    ? `<button type="button" style="margin-top:6px" onclick="window.open('${escapeHtml(item.imageUrl)}','_blank','noopener,noreferrer')">Open PDF</button>`
+                    ? `<button type="button" style="margin-top:6px" onclick="window.open('${escapeHtml(item.imageUrl)}','_blank','noopener,noreferrer')">?????? PDF</button>`
                     : "";
                   return `
             <div class="gallery-item">
@@ -598,13 +598,13 @@
               <div class="gallery-label">${escapeHtml(item.label)}</div>
               <div class="gallery-file">${escapeHtml(item.file)}</div>
               ${openPdfBtn}
-              <button type="button" style="margin-top:6px" onclick="openReplaceUpload('${escapeHtml(item.group || "")}','${escapeHtml(item.file)}')">Upload</button>
-              <button type="button" class="btn-danger" style="margin-top:6px" onclick="deleteGalleryItem('${escapeHtml(item.group || "")}','${escapeHtml(item.file)}')">Delete</button>
+              <button type="button" style="margin-top:6px" onclick="openReplaceUpload('${escapeHtml(item.group || "")}','${escapeHtml(item.file)}')">???????</button>
+              <button type="button" class="btn-danger" style="margin-top:6px" onclick="deleteGalleryItem('${escapeHtml(item.group || "")}','${escapeHtml(item.file)}')">???????</button>
             </div>`;
                 },
               )
               .join("")
-          : "<div class='meta'>No images found</div>";
+          : "<div class='meta'>?? ?? ??????? ?????</div>";
       }
 
       async function loadApkGallery() {
@@ -621,7 +621,7 @@
         if (!data) return;
         const item = data.item || null;
         if (!item || !item.imageUrl) {
-          homeTopFieldPreview.innerHTML = "<div class='meta'>No field uploaded</div>";
+          homeTopFieldPreview.innerHTML = "<div class='meta'>???? ????????? ????</div>";
           return;
         }
         homeTopFieldPreview.innerHTML = `
@@ -636,12 +636,12 @@
         const data = await callGet("/admin/vouchers/summary");
         if (!data || !voucherSummary) return;
         voucherSummary.innerHTML = `
-          <strong>Total:</strong> ${escapeHtml(data.total)} |
-          <strong>Free:</strong> ${escapeHtml(data.free)} |
-          <strong>Assigned:</strong> ${escapeHtml(data.assigned)} |
-          <strong>Used:</strong> ${escapeHtml(data.used)} |
-          <strong>Expired:</strong> ${escapeHtml(data.expired)} |
-          <strong>Void:</strong> ${escapeHtml(data.void)}
+          <strong>??????:</strong> ${escapeHtml(data.total)} |
+          <strong>????????:</strong> ${escapeHtml(data.free)} |
+          <strong>????????:</strong> ${escapeHtml(data.assigned)} |
+          <strong>???????????:</strong> ${escapeHtml(data.used)} |
+          <strong>????????:</strong> ${escapeHtml(data.expired)} |
+          <strong>?????????:</strong> ${escapeHtml(data.void)}
         `;
       }
 
@@ -655,13 +655,13 @@
             <div class="row">
               <div>
                 <div><strong>${escapeHtml(x.barcode)}</strong> - ${escapeHtml(x.amount)} ${escapeHtml(x.currency || "MKD")}</div>
-                <div class="meta">Status: ${escapeHtml(x.status)} | Batch: ${escapeHtml(x.importBatchId || "-")}</div>
-                <div class="meta">Source: ${escapeHtml(x.sourceFile || "-")}</div>
+                <div class="meta">??????: ${escapeHtml(x.status)} | Batch: ${escapeHtml(x.importBatchId || "-")}</div>
+                <div class="meta">?????: ${escapeHtml(x.sourceFile || "-")}</div>
               </div>
             </div>`,
               )
               .join("")
-          : "<div class='meta'>No vouchers imported</div>";
+          : "<div class='meta'>???? ??????? ???????</div>";
       }
 
       async function assignVoucherManually() {
@@ -736,7 +736,7 @@
           if (!file) return;
           const lowerName = String(file.name || "").toLowerCase();
           if (!lowerName.endsWith(".xls") && !lowerName.endsWith(".xlsx")) {
-            out.textContent = "Only XLS/XLSX files are supported for voucher import.";
+            out.textContent = "?? ???? ?? ??????? ?? ????????? ???? XLS/XLSX ???????.";
             return;
           }
           const dataBase64 = await fileToBase64(file);
@@ -749,7 +749,7 @@
             await loadVoucherList();
           }
         } catch (error) {
-          out.textContent = String(error?.message || error || "Voucher import failed.");
+          out.textContent = String(error?.message || error || "?????? ?? ??????? ?? ?????.");
         } finally {
           voucherFileInput.value = "";
         }
@@ -768,7 +768,7 @@
           const allowedMime = ["image/png", "image/jpeg", "image/webp"];
           const allowedExt = ["png", "jpg", "jpeg", "webp"];
           if (!allowedMime.includes(mimeType) && !allowedExt.includes(ext)) {
-            out.textContent = "Only PNG/JPG/WEBP files are supported for Home Top field.";
+            out.textContent = "?? ??????? ???? ?? ????????? ???? PNG/JPG/WEBP ???????.";
             return;
           }
           const dataBase64 = await fileToBase64(file);
@@ -780,14 +780,14 @@
           });
           if (ok) await loadHomeTopField();
         } catch (error) {
-          out.textContent = String(error?.message || error || "Home top upload failed.");
+          out.textContent = String(error?.message || error || "????????????? ?? ??????? ???? ?? ?????.");
         } finally {
           homeTopFileInput.value = "";
         }
       }
 
       async function deleteHomeTopField() {
-        if (!confirm("Delete home top field image?")) return;
+        if (!confirm("?? ?? ??????? ??????? ?? ??????? ?????")) return;
         const ok = await callDelete("/admin/home-top");
         if (ok) await loadHomeTopField();
       }
@@ -810,12 +810,12 @@
             const marker = "base64,";
             const idx = result.indexOf(marker);
             if (idx < 0) {
-              reject(new Error("Failed to parse file."));
+              reject(new Error("?? ????? ??????????? ?? ??????."));
               return;
             }
             resolve(result.slice(idx + marker.length));
           };
-          reader.onerror = () => reject(new Error("Failed to read file."));
+          reader.onerror = () => reject(new Error("?? ????? ???????? ?? ??????."));
           reader.readAsDataURL(file);
         });
       }
@@ -858,7 +858,7 @@
           const allowedMime = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
           const allowedExt = ["png", "jpg", "jpeg", "webp", "pdf"];
           if (!allowedMime.includes(mimeType) && !allowedExt.includes(ext)) {
-            out.textContent = "Only PNG/JPG/WEBP/PDF files are supported.";
+            out.textContent = "????????? ?? ???? PNG/JPG/WEBP/PDF ???????.";
             return;
           }
           const dataBase64 = await fileToBase64(file);
@@ -885,7 +885,7 @@
           });
           if (ok) await loadApkGallery();
         } catch (error) {
-          out.textContent = String(error?.message || error || "Upload failed.");
+          out.textContent = String(error?.message || error || "????????????? ?? ?????.");
         } finally {
           pendingUploadTarget = null;
           galleryFileInput.value = "";
@@ -893,26 +893,26 @@
       }
 
       async function deleteFlyer(id) {
-        if (!confirm("Delete flyer?")) return;
+        if (!confirm("?? ?? ??????? ????????")) return;
         const ok = await callDelete("/admin/flyers/" + encodeURIComponent(id));
         if (ok) await loadFlyers();
       }
 
       async function deleteNotification(id) {
-        if (!confirm("Delete notification?")) return;
+        if (!confirm("?? ?? ??????? ??????????????")) return;
         const ok = await callDelete("/admin/notifications/" + encodeURIComponent(id));
         if (ok) await loadNotifications();
       }
 
       async function deletePrice(barcode) {
-        if (!confirm("Delete price item?")) return;
+        if (!confirm("?? ?? ??????? ???????")) return;
         const ok = await callDelete("/admin/prices/" + encodeURIComponent(barcode));
         if (ok) await loadPrices();
       }
 
       async function deleteGalleryItem(group, file) {
         if (!group || !file) return;
-        if (!confirm("Delete this file?")) return;
+        if (!confirm("?? ?? ??????? ???? ?????")) return;
         const ok = await callDelete("/admin/apk-gallery/" + encodeURIComponent(group) + "/" + encodeURIComponent(file));
         if (ok) await loadApkGallery();
       }
