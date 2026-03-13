@@ -42,6 +42,7 @@ type TabParamList = {
   Home: undefined;
   Flyers: undefined;
   Card: undefined;
+  Vouchers: undefined;
   PriceCheck: undefined;
   Shopping: undefined;
   Locations: undefined;
@@ -99,6 +100,23 @@ type PurchaseItem = {
   kolicina: string;
   vrednost: string;
   imeOrg?: string;
+};
+
+type VoucherItem = {
+  id: string;
+  voucherId: string;
+  userId: string;
+  cardNumber: string;
+  assignmentType: string;
+  amount: number;
+  currency: string;
+  barcode: string;
+  assignedAt: string;
+  validFrom: string;
+  expiresAt: string;
+  usedAt: string;
+  status: string;
+  viewStatus: "active" | "used" | "expired";
 };
 
 type ApkGalleryItem = {
@@ -314,6 +332,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_home: "Почетна",
     tab_flyers: "Летоци",
     tab_card: "Лојална",
+    tab_vouchers: "Ваучери",
     tab_prices: "Цени",
     tab_shopping: "Листа",
     tab_locations: "Локации",
@@ -344,6 +363,16 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     locations_all: "Сите",
     screen_notifications_title: "Нотификации",
     screen_notifications_subtitle: "Директна и навремена комуникација",
+    screen_vouchers_title: "Ваучери",
+    screen_vouchers_subtitle: "Активни, искористени и истечени ваучери",
+    vouchers_empty: "Нема ваучери за приказ.",
+    vouchers_active: "Активни",
+    vouchers_used: "Искористени",
+    vouchers_expired: "Истечени",
+    vouchers_value: "Вредност",
+    vouchers_valid_until: "Рок",
+    vouchers_used_at: "Искористен",
+    vouchers_barcode: "Баркод",
     screen_profile_title: "Профил",
     screen_profile_subtitle: "Управување со сметка",
     screen_more_title: "More",
@@ -469,6 +498,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_home: "Home",
     tab_flyers: "Flyers",
     tab_card: "Card",
+    tab_vouchers: "Vouchers",
     tab_prices: "Prices",
     tab_shopping: "List",
     tab_locations: "Locations",
@@ -499,6 +529,16 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     locations_all: "All",
     screen_notifications_title: "Notifications",
     screen_notifications_subtitle: "Direct and timely communication",
+    screen_vouchers_title: "Vouchers",
+    screen_vouchers_subtitle: "Active, used and expired vouchers",
+    vouchers_empty: "No vouchers to display.",
+    vouchers_active: "Active",
+    vouchers_used: "Used",
+    vouchers_expired: "Expired",
+    vouchers_value: "Value",
+    vouchers_valid_until: "Valid until",
+    vouchers_used_at: "Used at",
+    vouchers_barcode: "Barcode",
     screen_profile_title: "Profile",
     screen_profile_subtitle: "Account management",
     screen_more_title: "More",
@@ -624,6 +664,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_home: "Kreu",
     tab_flyers: "Fletë",
     tab_card: "Kartela",
+    tab_vouchers: "Voucher",
     tab_prices: "Cmimet",
     tab_shopping: "Lista",
     tab_locations: "Lokacione",
@@ -654,6 +695,16 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     locations_all: "Te gjitha",
     screen_notifications_title: "Njoftime",
     screen_notifications_subtitle: "Komunikim i drejtpërdrejtë dhe në kohë",
+    screen_vouchers_title: "Voucher",
+    screen_vouchers_subtitle: "Aktive, te perdorura dhe te skaduara",
+    vouchers_empty: "Nuk ka voucher per shfaqje.",
+    vouchers_active: "Aktive",
+    vouchers_used: "Perdorura",
+    vouchers_expired: "Skaduara",
+    vouchers_value: "Vlera",
+    vouchers_valid_until: "Afati",
+    vouchers_used_at: "Perdorur me",
+    vouchers_barcode: "Barkodi",
     screen_profile_title: "Profili",
     screen_profile_subtitle: "Menaxhim i llogarisë",
     screen_more_title: "More",
@@ -779,6 +830,7 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     tab_home: "Ana Sayfa",
     tab_flyers: "Brosurler",
     tab_card: "Kart",
+    tab_vouchers: "Voucher",
     tab_prices: "Fiyat",
     tab_shopping: "Liste",
     tab_locations: "Konumlar",
@@ -809,6 +861,16 @@ const I18N: Record<LanguageCode, Record<string, string>> = {
     locations_all: "Tum",
     screen_notifications_title: "Bildirimler",
     screen_notifications_subtitle: "Dogrudan ve zamaninda iletisim",
+    screen_vouchers_title: "Voucher",
+    screen_vouchers_subtitle: "Aktif, kullanilmis ve suresi dolmus voucherlar",
+    vouchers_empty: "Gosterilecek voucher yok.",
+    vouchers_active: "Aktif",
+    vouchers_used: "Kullanildi",
+    vouchers_expired: "Suresi doldu",
+    vouchers_value: "Deger",
+    vouchers_valid_until: "Son tarih",
+    vouchers_used_at: "Kullanildi",
+    vouchers_barcode: "Barkod",
     screen_profile_title: "Profil",
     screen_profile_subtitle: "Hesap yonetimi",
     screen_more_title: "More",
@@ -2566,6 +2628,51 @@ function NotificationsScreen({ notices }: { notices: Notice[] }) {
   );
 }
 
+function VouchersScreen({ items }: { items: VoucherItem[] }) {
+  const { palette } = useAppTheme();
+  const { t } = useI18n();
+  const sections: Array<{ key: "active" | "used" | "expired"; title: string }> = [
+    { key: "active", title: t("vouchers_active") },
+    { key: "used", title: t("vouchers_used") },
+    { key: "expired", title: t("vouchers_expired") },
+  ];
+
+  return (
+    <ScreenWrap
+      title={t("screen_vouchers_title")}
+      subtitle={t("screen_vouchers_subtitle")}
+      titleStyle={[styles.flyersScreenTitle, { color: getHeadlineColorByPalette(palette), textShadowColor: getHeadlineOutlineColorByPalette(palette), textShadowOffset: { width: 0, height: 0 }, textShadowRadius: HEADLINE_OUTLINE_RADIUS }]}
+      subtitleStyle={styles.flyersScreenSubtitle}
+    >
+      {sections.map((section) => {
+        const rows = items.filter((item) => item.viewStatus === section.key);
+        return (
+          <View key={section.key} style={styles.voucherSection}>
+            <Text style={[styles.voucherSectionTitle, { color: palette.text }]}>{section.title}</Text>
+            {rows.length ? (
+              rows.map((item) => (
+                <View key={item.id} style={[styles.notificationCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                  <Text style={[styles.notificationTitle, { color: palette.text }]}>{`${t("vouchers_value")}: ${item.amount} ${item.currency}`}</Text>
+                  <Text style={[styles.notificationBody, { color: palette.muted }]}>{`${t("vouchers_barcode")}: ${item.barcode}`}</Text>
+                  <Text style={[styles.notificationBody, { color: palette.muted }]}>{`${t("vouchers_valid_until")}: ${item.expiresAt ? item.expiresAt.slice(0, 10) : "-"}`}</Text>
+                  {item.usedAt ? <Text style={[styles.notificationBody, { color: palette.muted }]}>{`${t("vouchers_used_at")}: ${item.usedAt.slice(0, 10)}`}</Text> : null}
+                  <View style={styles.barcodeWrap}>
+                    <BarcodeStrip value={item.barcode} height={40} />
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={[styles.shoppingEmptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                <Text style={[styles.shoppingEmptyText, { color: palette.muted }]}>{t("vouchers_empty")}</Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </ScreenWrap>
+  );
+}
+
 function LocationsScreen() {
   const { palette, mode } = useAppTheme();
   const { t } = useI18n();
@@ -2922,10 +3029,12 @@ function ProfileScreen({
 
 function MoreScreen({
   onOpenCard,
+  onOpenVouchers,
   onOpenLocations,
   onOpenProfile,
 }: {
   onOpenCard: () => void;
+  onOpenVouchers: () => void;
   onOpenLocations: () => void;
   onOpenProfile: () => void;
 }) {
@@ -2946,6 +3055,10 @@ function MoreScreen({
       <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onOpenLocations}>
         <Ionicons name="location-outline" size={20} color={colors.green} />
         <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("tab_locations")}</Text>
+      </Pressable>
+      <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onOpenVouchers}>
+        <Ionicons name="ticket-outline" size={20} color={colors.green} />
+        <Text style={[styles.loginBtnText, { color: colors.green }]}>{t("tab_vouchers")}</Text>
       </Pressable>
       <Pressable style={[styles.loginBtn, { marginTop: 8 }]} onPress={onOpenProfile}>
         <Ionicons name="person-outline" size={20} color={colors.green} />
@@ -3007,6 +3120,7 @@ function MainTabs({
   bestDeals,
   homeTopItem,
   notices,
+  vouchers,
   card,
   shoppingItems,
   pushToken,
@@ -3036,6 +3150,7 @@ function MainTabs({
   bestDeals: BestDealItem[];
   homeTopItem: HomeTopItem | null;
   notices: Notice[];
+  vouchers: VoucherItem[];
   card: CardData;
   shoppingItems: ShoppingItem[];
   pushToken: string;
@@ -3127,6 +3242,7 @@ function MainTabs({
             Home: "home",
             Flyers: "pricetags",
             Card: "card",
+            Vouchers: "ticket",
             PriceCheck: "barcode-outline",
             Shopping: "basket",
             Locations: "location",
@@ -3192,9 +3308,20 @@ function MainTabs({
           <MoreScreen
             onOpenCard={() => navigation.navigate("Card")}
             onOpenLocations={() => navigation.navigate("Locations")}
+            onOpenVouchers={() => navigation.navigate("Vouchers")}
             onOpenProfile={() => navigation.navigate("Profile")}
           />
         )}
+      </Tab.Screen>
+      <Tab.Screen
+        name="Vouchers"
+        options={{
+          title: t("tab_vouchers"),
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: "none" },
+        }}
+      >
+        {() => <VouchersScreen items={vouchers} />}
       </Tab.Screen>
       <Tab.Screen
         name="Card"
@@ -3311,6 +3438,7 @@ export default function App() {
   const [bestDeals, setBestDeals] = useState<BestDealItem[]>([]);
   const [homeTopItem, setHomeTopItem] = useState<HomeTopItem | null>(null);
   const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
+  const [vouchers, setVouchers] = useState<VoucherItem[]>([]);
   const [card, setCard] = useState<CardData>(fallbackCard);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [pushToken, setPushToken] = useState("");
@@ -3391,13 +3519,14 @@ export default function App() {
   };
 
   const loadData = async (token: string) => {
-    const [nextUser, nextFlyers, nextNotices, nextCard, nextApkGallery, nextHomeTop] = await Promise.all([
+    const [nextUser, nextFlyers, nextNotices, nextCard, nextApkGallery, nextHomeTop, nextVouchers] = await Promise.all([
       apiGet<User>(apiBase, "/me", token),
       apiGet<Flyer[]>(apiBase, "/flyers", token),
       apiGet<Notice[]>(apiBase, "/notifications", token),
       apiGet<CardData>(apiBase, "/loyalty/card", token),
       apiGet<ApkGalleryPayload>(apiBase, "/cms/apk-gallery", token),
       apiGet<HomeTopPayload>(apiBase, "/cms/home-top", token).catch(() => ({ item: null })),
+      apiGet<{ items?: VoucherItem[] }>(apiBase, "/me/vouchers", token).catch(() => ({ items: [] })),
     ]);
     const nextCurrentFlyers = Array.isArray(nextApkGallery?.currentFlyers)
       ? nextApkGallery.currentFlyers.map((item) => ({
@@ -3424,6 +3553,7 @@ export default function App() {
     setBestDeals(nextBestDeals);
     setHomeTopItem(nextHomeTop?.item ? nextHomeTop.item : null);
     setNotices(nextNotices);
+    setVouchers(Array.isArray(nextVouchers?.items) ? nextVouchers.items : []);
     setCard(nextCard);
   };
 
@@ -3758,6 +3888,7 @@ export default function App() {
     setBestDeals([]);
     setHomeTopItem(null);
     setNotices(fallbackNotices);
+    setVouchers([]);
     setCard({ cardNumber: "", barcode: "", qrValue: "" });
   };
 
@@ -3862,6 +3993,7 @@ export default function App() {
                 bestDeals={bestDeals}
                 homeTopItem={homeTopItem}
                 notices={notices}
+                vouchers={vouchers}
                 card={card}
                 shoppingItems={shoppingItems}
                 pushToken={pushToken}
@@ -4968,6 +5100,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: colors.green,
     fontWeight: "700",
+  },
+  voucherSection: {
+    marginBottom: 16,
+    gap: 10,
+  },
+  voucherSectionTitle: {
+    fontSize: 16,
+    fontWeight: "900",
   },
   locationSection: {
     marginBottom: 14,

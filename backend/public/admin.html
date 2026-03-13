@@ -177,6 +177,7 @@
           <button type="button" onclick="scrollToSection('sec-notification-create')">Notifications</button>
           <button type="button" onclick="scrollToSection('sec-push')">Push</button>
           <button type="button" onclick="scrollToSection('sec-apk')">APK</button>
+          <button type="button" onclick="scrollToSection('sec-vouchers')">Vouchers</button>
           <button type="button" onclick="scrollToSection('sec-logs')">Logs</button>
         </div>
       </div>
@@ -256,6 +257,48 @@
       <div id="homeTopFieldPreview" class="gallery-grid"></div>
     </div>
 
+    <div class="card full" id="sec-vouchers">
+      <div class="section-head">
+        <h3>Voucher Import</h3>
+        <button type="button" onclick="loadVoucherSummary(); loadVoucherList()">Refresh</button>
+      </div>
+      <div class="gallery-actions">
+        <button type="button" onclick="openVoucherImport()">Upload Excel (.xls/.xlsx)</button>
+      </div>
+      <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 12px; margin-bottom: 12px">
+        <strong>Manual assignment by loyalty card</strong>
+        <input id="voucherAssignCardNumber" placeholder="Loyalty card number" />
+        <input id="voucherAssignBarcode" placeholder="Voucher barcode (optional - leave empty for first free voucher)" />
+        <input id="voucherAssignValidDays" type="number" min="1" max="3650" value="30" placeholder="Validity days" />
+        <button type="button" onclick="assignVoucherManually()">Assign voucher</button>
+      </div>
+      <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 12px; margin-bottom: 12px">
+        <strong>Redeem voucher</strong>
+        <input id="voucherRedeemBarcode" placeholder="Voucher barcode" />
+        <input id="voucherRedeemCardNumber" placeholder="Loyalty card number (optional validation)" />
+        <input id="voucherRedeemReference" placeholder="Reference / receipt / note (optional)" />
+        <button type="button" onclick="redeemVoucher()">Redeem voucher</button>
+      </div>
+      <div style="border: 1px solid #e3e3e3; border-radius: 10px; padding: 12px; margin-bottom: 12px">
+        <strong>Voucher rules</strong>
+        <div class="meta" style="margin: 8px 0 6px 0">Signup voucher</div>
+        <label><input id="ruleSignupEnabled" type="checkbox" style="width:auto;margin-right:8px" /> Enable signup voucher</label>
+        <input id="ruleSignupAmount" type="number" min="0" step="0.01" placeholder="Signup voucher amount" />
+        <input id="ruleSignupValidDays" type="number" min="1" max="3650" placeholder="Signup voucher validity days" />
+        <div class="meta" style="margin: 8px 0 6px 0">Monthly turnover > 5000</div>
+        <label><input id="ruleMonthly5000Enabled" type="checkbox" style="width:auto;margin-right:8px" /> Enable 5000 rule</label>
+        <input id="ruleMonthly5000Amount" type="number" min="0" step="0.01" placeholder="Voucher amount for >5000" />
+        <input id="ruleMonthly5000ValidDays" type="number" min="1" max="3650" placeholder="Validity days for >5000" />
+        <div class="meta" style="margin: 8px 0 6px 0">Monthly turnover > 10000</div>
+        <label><input id="ruleMonthly10000Enabled" type="checkbox" style="width:auto;margin-right:8px" /> Enable 10000 rule</label>
+        <input id="ruleMonthly10000Amount" type="number" min="0" step="0.01" placeholder="Voucher amount for >10000" />
+        <input id="ruleMonthly10000ValidDays" type="number" min="1" max="3650" placeholder="Validity days for >10000" />
+        <button type="button" onclick="saveVoucherRules()">Save voucher rules</button>
+      </div>
+      <div id="voucherSummary" class="meta" style="margin-bottom: 12px">No voucher data loaded.</div>
+      <div id="voucherList"></div>
+    </div>
+
       </div>
     <div id="sec-logs">
       <pre id="out" style="margin-bottom: 14px">Ready.</pre>
@@ -264,6 +307,7 @@
     <input id="galleryFileInput" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display: none" />
     <input id="notificationFileInput" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style="display: none" />
     <input id="homeTopFileInput" type="file" accept="image/png,image/jpeg,image/webp" style="display: none" />
+    <input id="voucherFileInput" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display: none" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <script>
@@ -279,7 +323,25 @@
       const galleryFileInput = document.getElementById("galleryFileInput");
       const notificationFileInput = document.getElementById("notificationFileInput");
       const homeTopFileInput = document.getElementById("homeTopFileInput");
+      const voucherFileInput = document.getElementById("voucherFileInput");
       const homeTopFieldPreview = document.getElementById("homeTopFieldPreview");
+      const voucherSummary = document.getElementById("voucherSummary");
+      const voucherList = document.getElementById("voucherList");
+      const voucherAssignCardNumber = document.getElementById("voucherAssignCardNumber");
+      const voucherAssignBarcode = document.getElementById("voucherAssignBarcode");
+      const voucherAssignValidDays = document.getElementById("voucherAssignValidDays");
+      const voucherRedeemBarcode = document.getElementById("voucherRedeemBarcode");
+      const voucherRedeemCardNumber = document.getElementById("voucherRedeemCardNumber");
+      const voucherRedeemReference = document.getElementById("voucherRedeemReference");
+      const ruleSignupEnabled = document.getElementById("ruleSignupEnabled");
+      const ruleSignupAmount = document.getElementById("ruleSignupAmount");
+      const ruleSignupValidDays = document.getElementById("ruleSignupValidDays");
+      const ruleMonthly5000Enabled = document.getElementById("ruleMonthly5000Enabled");
+      const ruleMonthly5000Amount = document.getElementById("ruleMonthly5000Amount");
+      const ruleMonthly5000ValidDays = document.getElementById("ruleMonthly5000ValidDays");
+      const ruleMonthly10000Enabled = document.getElementById("ruleMonthly10000Enabled");
+      const ruleMonthly10000Amount = document.getElementById("ruleMonthly10000Amount");
+      const ruleMonthly10000ValidDays = document.getElementById("ruleMonthly10000ValidDays");
       let pendingUploadTarget = null;
       if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -570,6 +632,129 @@
         `;
       }
 
+      async function loadVoucherSummary() {
+        const data = await callGet("/admin/vouchers/summary");
+        if (!data || !voucherSummary) return;
+        voucherSummary.innerHTML = `
+          <strong>Total:</strong> ${escapeHtml(data.total)} |
+          <strong>Free:</strong> ${escapeHtml(data.free)} |
+          <strong>Assigned:</strong> ${escapeHtml(data.assigned)} |
+          <strong>Used:</strong> ${escapeHtml(data.used)} |
+          <strong>Expired:</strong> ${escapeHtml(data.expired)} |
+          <strong>Void:</strong> ${escapeHtml(data.void)}
+        `;
+      }
+
+      async function loadVoucherList() {
+        const rows = await callGet("/admin/vouchers?limit=50");
+        if (!rows || !voucherList) return;
+        voucherList.innerHTML = rows.length
+          ? rows
+              .map(
+                (x) => `
+            <div class="row">
+              <div>
+                <div><strong>${escapeHtml(x.barcode)}</strong> - ${escapeHtml(x.amount)} ${escapeHtml(x.currency || "MKD")}</div>
+                <div class="meta">Status: ${escapeHtml(x.status)} | Batch: ${escapeHtml(x.importBatchId || "-")}</div>
+                <div class="meta">Source: ${escapeHtml(x.sourceFile || "-")}</div>
+              </div>
+            </div>`,
+              )
+              .join("")
+          : "<div class='meta'>No vouchers imported</div>";
+      }
+
+      async function assignVoucherManually() {
+        const cardNumber = String(voucherAssignCardNumber?.value || "").trim();
+        const barcode = String(voucherAssignBarcode?.value || "").trim();
+        const validDays = Number(voucherAssignValidDays?.value || 30);
+        const ok = await call("/admin/vouchers/assign", {
+          cardNumber,
+          barcode,
+          validDays,
+        });
+        if (ok) {
+          voucherAssignBarcode.value = "";
+          await loadVoucherSummary();
+          await loadVoucherList();
+        }
+      }
+
+      async function redeemVoucher() {
+        const barcode = String(voucherRedeemBarcode?.value || "").trim();
+        const cardNumber = String(voucherRedeemCardNumber?.value || "").trim();
+        const usedReference = String(voucherRedeemReference?.value || "").trim();
+        const ok = await call("/admin/vouchers/redeem", {
+          barcode,
+          cardNumber,
+          usedReference,
+        });
+        if (ok) {
+          voucherRedeemBarcode.value = "";
+          voucherRedeemCardNumber.value = "";
+          voucherRedeemReference.value = "";
+          await loadVoucherSummary();
+          await loadVoucherList();
+        }
+      }
+
+      async function loadVoucherRules() {
+        const rules = await callGet("/admin/voucher-rules");
+        if (!rules) return;
+        ruleSignupEnabled.checked = String(rules.signup_enabled) === "true";
+        ruleSignupAmount.value = String(rules.signup_amount || "0");
+        ruleSignupValidDays.value = String(rules.signup_valid_days || "30");
+        ruleMonthly5000Enabled.checked = String(rules.monthly_5000_enabled) === "true";
+        ruleMonthly5000Amount.value = String(rules.monthly_5000_amount || "0");
+        ruleMonthly5000ValidDays.value = String(rules.monthly_5000_valid_days || "30");
+        ruleMonthly10000Enabled.checked = String(rules.monthly_10000_enabled) === "true";
+        ruleMonthly10000Amount.value = String(rules.monthly_10000_amount || "0");
+        ruleMonthly10000ValidDays.value = String(rules.monthly_10000_valid_days || "30");
+      }
+
+      async function saveVoucherRules() {
+        await call("/admin/voucher-rules", {
+          signup_enabled: ruleSignupEnabled.checked,
+          signup_amount: Number(ruleSignupAmount.value || 0),
+          signup_valid_days: Number(ruleSignupValidDays.value || 30),
+          monthly_5000_enabled: ruleMonthly5000Enabled.checked,
+          monthly_5000_amount: Number(ruleMonthly5000Amount.value || 0),
+          monthly_5000_valid_days: Number(ruleMonthly5000ValidDays.value || 30),
+          monthly_10000_enabled: ruleMonthly10000Enabled.checked,
+          monthly_10000_amount: Number(ruleMonthly10000Amount.value || 0),
+          monthly_10000_valid_days: Number(ruleMonthly10000ValidDays.value || 30),
+        });
+      }
+
+      function openVoucherImport() {
+        voucherFileInput.click();
+      }
+
+      async function handleVoucherFilePicked(event) {
+        try {
+          const file = event?.target?.files?.[0];
+          if (!file) return;
+          const lowerName = String(file.name || "").toLowerCase();
+          if (!lowerName.endsWith(".xls") && !lowerName.endsWith(".xlsx")) {
+            out.textContent = "Only XLS/XLSX files are supported for voucher import.";
+            return;
+          }
+          const dataBase64 = await fileToBase64(file);
+          const ok = await callUpload("/admin/vouchers/import", {
+            fileName: file.name,
+            dataBase64,
+          });
+          if (ok) {
+            await loadVoucherSummary();
+            await loadVoucherList();
+          }
+        } catch (error) {
+          out.textContent = String(error?.message || error || "Voucher import failed.");
+        } finally {
+          voucherFileInput.value = "";
+        }
+      }
+
       function openHomeTopUpload() {
         homeTopFileInput.click();
       }
@@ -740,9 +925,13 @@
         galleryFileInput.addEventListener("change", handleGalleryFilePicked);
         notificationFileInput.addEventListener("change", handleNotificationFilePicked);
         homeTopFileInput.addEventListener("change", handleHomeTopFilePicked);
+        voucherFileInput.addEventListener("change", handleVoucherFilePicked);
         await loadNotifications();
         await loadApkGallery();
         await loadHomeTopField();
+        await loadVoucherSummary();
+        await loadVoucherList();
+        await loadVoucherRules();
       }
 
       boot();

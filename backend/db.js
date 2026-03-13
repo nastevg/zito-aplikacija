@@ -28,6 +28,42 @@ function mapProductPrice(row) {
   };
 }
 
+function mapVoucher(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    barcode: row.barcode,
+    amount: Number(row.amount),
+    currency: row.currency,
+    status: row.status,
+    sourceFile: row.source_file || row.sourceFile || "",
+    importBatchId: row.import_batch_id || row.importBatchId || "",
+    createdAt: row.created_at || row.createdAt,
+    updatedAt: row.updated_at || row.updatedAt,
+  };
+}
+
+function mapVoucherAssignmentRow(row) {
+  if (!row) return null;
+  return {
+    id: row.assignment_id || row.id,
+    voucherId: row.voucher_id || row.voucherId,
+    userId: row.user_id || row.userId || "",
+    cardNumber: row.card_number || row.cardNumber || "",
+    assignmentType: row.assignment_type || row.assignmentType || "",
+    amount: Number(row.amount_snapshot ?? row.amount ?? 0),
+    currency: row.currency || "MKD",
+    barcode: row.barcode || "",
+    voucherStatus: row.voucher_status || row.voucherStatus || "",
+    assignedAt: row.assigned_at || row.assignedAt || "",
+    validFrom: row.valid_from || row.validFrom || "",
+    expiresAt: row.expires_at || row.expiresAt || "",
+    usedAt: row.used_at || row.usedAt || "",
+    periodKey: row.period_key || row.periodKey || "",
+    status: row.assignment_status || row.status || "active",
+  };
+}
+
 function readMigrationFiles(engine) {
   const dir = path.join(__dirname, "migrations", engine);
   if (!fs.existsSync(dir)) return [];
@@ -243,6 +279,234 @@ function createSqliteStore(filePath) {
       const result = await run("DELETE FROM product_prices WHERE barcode = ?", [barcode]);
       return Number(result?.changes || 0) > 0;
     },
+    async getVoucherByBarcode(barcode) {
+      const row = await get("SELECT * FROM vouchers WHERE barcode = ? LIMIT 1", [barcode]);
+      return mapVoucher(row);
+    },
+    async createVoucher(voucher) {
+      const result = await run(
+        `INSERT OR IGNORE INTO vouchers (id, barcode, amount, currency, status, source_file, import_batch_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          voucher.id,
+          voucher.barcode,
+          voucher.amount,
+          voucher.currency,
+          voucher.status,
+          voucher.sourceFile,
+          voucher.importBatchId,
+          voucher.createdAt,
+          voucher.updatedAt,
+        ],
+      );
+      if (Number(result?.changes || 0) < 1) return null;
+      return this.getVoucherByBarcode(voucher.barcode);
+    },
+    async getVoucherById(id) {
+      const row = await get("SELECT * FROM vouchers WHERE id = ? LIMIT 1", [id]);
+      return mapVoucher(row);
+    },
+    async listVouchers({ status = "", limit = 100 } = {}) {
+      const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 100));
+      const rows = status
+        ? await all("SELECT * FROM vouchers WHERE status = ? ORDER BY created_at DESC, barcode ASC LIMIT ?", [status, safeLimit])
+        : await all("SELECT * FROM vouchers ORDER BY created_at DESC, barcode ASC LIMIT ?", [safeLimit]);
+      return rows.map(mapVoucher);
+    },
+    async getVoucherSummary() {
+      const rows = await all("SELECT status, COUNT(*) AS count FROM vouchers GROUP BY status");
+      const summary = { free: 0, assigned: 0, used: 0, expired: 0, void: 0, total: 0 };
+      for (const row of rows) {
+        const key = String(row.status || "");
+        const count = Number(row.count || 0);
+        if (Object.prototype.hasOwnProperty.call(summary, key)) summary[key] = count;
+        summary.total += count;
+      }
+      return summary;
+    },
+    async findFreeVoucher({ barcode = "", amount = null } = {}) {
+      const normalizedAmount = Number(amount);
+      const hasAmountFilter = Number.isFinite(normalizedAmount) && normalizedAmount > 0;
+      const row = barcode
+        ? await get("SELECT * FROM vouchers WHERE barcode = ? AND status = 'free' LIMIT 1", [barcode])
+        : hasAmountFilter
+          ? await get(
+            "SELECT * FROM vouchers WHERE status = 'free' AND amount = ? ORDER BY created_at ASC, barcode ASC LIMIT 1",
+            [normalizedAmount],
+          )
+          : await get("SELECT * FROM vouchers WHERE status = 'free' ORDER BY created_at ASC, barcode ASC LIMIT 1");
+      return mapVoucher(row);
+    },
+    async markVoucherAssigned(voucherId, updatedAt) {
+      const result = await run("UPDATE vouchers SET status = 'assigned', updated_at = ? WHERE id = ? AND status = 'free'", [updatedAt, voucherId]);
+      return Number(result?.changes || 0) > 0;
+    },
+    async createVoucherAssignment(assignment) {
+      await run(
+        `INSERT INTO voucher_assignments (
+          id, voucher_id, user_id, card_number, assignment_type, amount_snapshot, assigned_by, assigned_at, valid_from, expires_at, used_at, used_reference, period_key, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          assignment.id,
+          assignment.voucherId,
+          assignment.userId || null,
+          assignment.cardNumber || null,
+          assignment.assignmentType,
+          assignment.amountSnapshot,
+          assignment.assignedBy,
+          assignment.assignedAt,
+          assignment.validFrom || null,
+          assignment.expiresAt || null,
+          assignment.usedAt || null,
+          assignment.usedReference || null,
+          assignment.periodKey || "",
+          assignment.status,
+        ],
+      );
+      return assignment;
+    },
+    async findVoucherAssignmentByPeriod({ userId = "", cardNumber = "", assignmentType = "", periodKey = "" } = {}) {
+      const row = await get(
+        `SELECT
+           va.id AS assignment_id,
+           va.voucher_id,
+           va.user_id,
+           va.card_number,
+           va.assignment_type,
+           va.amount_snapshot,
+           va.assigned_at,
+           va.valid_from,
+           va.expires_at,
+           va.used_at,
+           va.period_key,
+           va.status AS assignment_status,
+           v.barcode,
+           v.status AS voucher_status,
+           v.currency
+         FROM voucher_assignments va
+         INNER JOIN vouchers v ON v.id = va.voucher_id
+         WHERE va.assignment_type = ?
+           AND va.period_key = ?
+           AND (va.user_id = ? OR (va.card_number = ? AND ? <> ''))
+         ORDER BY va.assigned_at DESC, va.id DESC
+         LIMIT 1`,
+        [assignmentType, periodKey, userId || "", cardNumber || "", cardNumber || ""],
+      );
+      return mapVoucherAssignmentRow(row);
+    },
+    async getVoucherAssignmentByBarcode(barcode) {
+      const row = await get(
+        `SELECT
+           va.id AS assignment_id,
+           va.voucher_id,
+           va.user_id,
+           va.card_number,
+           va.assignment_type,
+           va.amount_snapshot,
+           va.assigned_at,
+           va.valid_from,
+           va.expires_at,
+           va.used_at,
+           va.used_reference,
+           va.period_key,
+           va.status AS assignment_status,
+           v.barcode,
+           v.status AS voucher_status,
+           v.currency
+         FROM voucher_assignments va
+         INNER JOIN vouchers v ON v.id = va.voucher_id
+         WHERE v.barcode = ?
+         ORDER BY va.assigned_at DESC, va.id DESC
+         LIMIT 1`,
+        [barcode],
+      );
+      return mapVoucherAssignmentRow(row);
+    },
+    async redeemVoucherAssignment({ assignmentId, voucherId, usedAt, usedReference }) {
+      await run("BEGIN TRANSACTION");
+      try {
+        const assignmentResult = await run(
+          "UPDATE voucher_assignments SET status = 'used', used_at = ?, used_reference = ? WHERE id = ? AND status = 'active' AND (used_at IS NULL OR used_at = '')",
+          [usedAt, usedReference || null, assignmentId],
+        );
+        if (Number(assignmentResult?.changes || 0) < 1) {
+          await run("ROLLBACK");
+          return false;
+        }
+        const voucherResult = await run(
+          "UPDATE vouchers SET status = 'used', updated_at = ? WHERE id = ? AND status = 'assigned'",
+          [usedAt, voucherId],
+        );
+        if (Number(voucherResult?.changes || 0) < 1) {
+          await run("ROLLBACK");
+          return false;
+        }
+        await run("COMMIT");
+        return true;
+      } catch (error) {
+        try {
+          await run("ROLLBACK");
+        } catch (_rollbackError) {
+          // ignore rollback failure
+        }
+        throw error;
+      }
+    },
+    async listVoucherAssignmentsForUser(userId, cardNumber) {
+      const rows = await all(
+        `SELECT
+           va.id AS assignment_id,
+           va.voucher_id,
+           va.user_id,
+           va.card_number,
+           va.assignment_type,
+           va.amount_snapshot,
+           va.assigned_at,
+           va.valid_from,
+           va.expires_at,
+           va.used_at,
+           va.period_key,
+           va.status AS assignment_status,
+           v.barcode,
+           v.status AS voucher_status,
+           v.currency
+         FROM voucher_assignments va
+         INNER JOIN vouchers v ON v.id = va.voucher_id
+         WHERE va.user_id = ? OR (va.card_number = ? AND ? <> '')
+         ORDER BY va.assigned_at DESC, va.id DESC`,
+        [userId, cardNumber || "", cardNumber || ""],
+      );
+      return rows.map(mapVoucherAssignmentRow);
+    },
+    async addVoucherEvent(event) {
+      await run(
+        `INSERT INTO voucher_events (id, voucher_id, assignment_id, event_type, actor_type, actor_id, meta_json, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          event.id,
+          event.voucherId,
+          event.assignmentId || null,
+          event.eventType,
+          event.actorType,
+          event.actorId,
+          event.metaJson,
+          event.createdAt,
+        ],
+      );
+      return event;
+    },
+    async listVoucherRules() {
+      return all("SELECT key, value_text AS valueText, updated_at AS updatedAt FROM voucher_rules ORDER BY key ASC");
+    },
+    async upsertVoucherRule(key, valueText, updatedAt) {
+      await run(
+        `INSERT INTO voucher_rules (key, value_text, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value_text = excluded.value_text, updated_at = excluded.updated_at`,
+        [key, valueText, updatedAt],
+      );
+      return get("SELECT key, value_text AS valueText, updated_at AS updatedAt FROM voucher_rules WHERE key = ? LIMIT 1", [key]);
+    },
   };
 }
 
@@ -414,6 +678,240 @@ function createPgStore(connectionString) {
     async deleteProductPriceByBarcode(barcode) {
       const r = await q("DELETE FROM product_prices WHERE barcode = $1", [barcode]);
       return Number(r.rowCount || 0) > 0;
+    },
+    async getVoucherByBarcode(barcode) {
+      const r = await q("SELECT * FROM vouchers WHERE barcode = $1 LIMIT 1", [barcode]);
+      return mapVoucher(r.rows[0]);
+    },
+    async createVoucher(voucher) {
+      const r = await q(
+        `INSERT INTO vouchers (id, barcode, amount, currency, status, source_file, import_batch_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (barcode) DO NOTHING
+         RETURNING *`,
+        [
+          voucher.id,
+          voucher.barcode,
+          voucher.amount,
+          voucher.currency,
+          voucher.status,
+          voucher.sourceFile,
+          voucher.importBatchId,
+          voucher.createdAt,
+          voucher.updatedAt,
+        ],
+      );
+      return mapVoucher(r.rows[0]);
+    },
+    async getVoucherById(id) {
+      const r = await q("SELECT * FROM vouchers WHERE id = $1 LIMIT 1", [id]);
+      return mapVoucher(r.rows[0]);
+    },
+    async listVouchers({ status = "", limit = 100 } = {}) {
+      const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 100));
+      const r = status
+        ? await q("SELECT * FROM vouchers WHERE status = $1 ORDER BY created_at DESC, barcode ASC LIMIT $2", [status, safeLimit])
+        : await q("SELECT * FROM vouchers ORDER BY created_at DESC, barcode ASC LIMIT $1", [safeLimit]);
+      return r.rows.map(mapVoucher);
+    },
+    async getVoucherSummary() {
+      const r = await q("SELECT status, COUNT(*)::int AS count FROM vouchers GROUP BY status");
+      const summary = { free: 0, assigned: 0, used: 0, expired: 0, void: 0, total: 0 };
+      for (const row of r.rows) {
+        const key = String(row.status || "");
+        const count = Number(row.count || 0);
+        if (Object.prototype.hasOwnProperty.call(summary, key)) summary[key] = count;
+        summary.total += count;
+      }
+      return summary;
+    },
+    async findFreeVoucher({ barcode = "", amount = null } = {}) {
+      const normalizedAmount = Number(amount);
+      const hasAmountFilter = Number.isFinite(normalizedAmount) && normalizedAmount > 0;
+      const r = barcode
+        ? await q("SELECT * FROM vouchers WHERE barcode = $1 AND status = 'free' LIMIT 1", [barcode])
+        : hasAmountFilter
+          ? await q(
+            "SELECT * FROM vouchers WHERE status = 'free' AND amount = $1 ORDER BY created_at ASC, barcode ASC LIMIT 1",
+            [normalizedAmount],
+          )
+          : await q("SELECT * FROM vouchers WHERE status = 'free' ORDER BY created_at ASC, barcode ASC LIMIT 1");
+      return mapVoucher(r.rows[0]);
+    },
+    async markVoucherAssigned(voucherId, updatedAt) {
+      const r = await q("UPDATE vouchers SET status = 'assigned', updated_at = $1 WHERE id = $2 AND status = 'free'", [updatedAt, voucherId]);
+      return Number(r.rowCount || 0) > 0;
+    },
+    async createVoucherAssignment(assignment) {
+      await q(
+        `INSERT INTO voucher_assignments (
+          id, voucher_id, user_id, card_number, assignment_type, amount_snapshot, assigned_by, assigned_at, valid_from, expires_at, used_at, used_reference, period_key, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+        [
+          assignment.id,
+          assignment.voucherId,
+          assignment.userId || null,
+          assignment.cardNumber || null,
+          assignment.assignmentType,
+          assignment.amountSnapshot,
+          assignment.assignedBy,
+          assignment.assignedAt,
+          assignment.validFrom || null,
+          assignment.expiresAt || null,
+          assignment.usedAt || null,
+          assignment.usedReference || null,
+          assignment.periodKey || "",
+          assignment.status,
+        ],
+      );
+      return assignment;
+    },
+    async findVoucherAssignmentByPeriod({ userId = "", cardNumber = "", assignmentType = "", periodKey = "" } = {}) {
+      const r = await q(
+        `SELECT
+           va.id AS assignment_id,
+           va.voucher_id,
+           va.user_id,
+           va.card_number,
+           va.assignment_type,
+           va.amount_snapshot,
+           va.assigned_at,
+           va.valid_from,
+           va.expires_at,
+           va.used_at,
+           va.period_key,
+           va.status AS assignment_status,
+           v.barcode,
+           v.status AS voucher_status,
+           v.currency
+         FROM voucher_assignments va
+         INNER JOIN vouchers v ON v.id = va.voucher_id
+         WHERE va.assignment_type = $1
+           AND va.period_key = $2
+           AND (va.user_id = $3 OR (va.card_number = $4 AND $5 <> ''))
+         ORDER BY va.assigned_at DESC, va.id DESC
+         LIMIT 1`,
+        [assignmentType, periodKey, userId || "", cardNumber || "", cardNumber || ""],
+      );
+      return mapVoucherAssignmentRow(r.rows[0]);
+    },
+    async getVoucherAssignmentByBarcode(barcode) {
+      const r = await q(
+        `SELECT
+           va.id AS assignment_id,
+           va.voucher_id,
+           va.user_id,
+           va.card_number,
+           va.assignment_type,
+           va.amount_snapshot,
+           va.assigned_at,
+           va.valid_from,
+           va.expires_at,
+           va.used_at,
+           va.used_reference,
+           va.period_key,
+           va.status AS assignment_status,
+           v.barcode,
+           v.status AS voucher_status,
+           v.currency
+         FROM voucher_assignments va
+         INNER JOIN vouchers v ON v.id = va.voucher_id
+         WHERE v.barcode = $1
+         ORDER BY va.assigned_at DESC, va.id DESC
+         LIMIT 1`,
+        [barcode],
+      );
+      return mapVoucherAssignmentRow(r.rows[0]);
+    },
+    async redeemVoucherAssignment({ assignmentId, voucherId, usedAt, usedReference }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const assignmentResult = await client.query(
+          "UPDATE voucher_assignments SET status = 'used', used_at = $1, used_reference = $2 WHERE id = $3 AND status = 'active' AND (used_at IS NULL OR used_at = '')",
+          [usedAt, usedReference || null, assignmentId],
+        );
+        if (Number(assignmentResult.rowCount || 0) < 1) {
+          await client.query("ROLLBACK");
+          return false;
+        }
+        const voucherResult = await client.query(
+          "UPDATE vouchers SET status = 'used', updated_at = $1 WHERE id = $2 AND status = 'assigned'",
+          [usedAt, voucherId],
+        );
+        if (Number(voucherResult.rowCount || 0) < 1) {
+          await client.query("ROLLBACK");
+          return false;
+        }
+        await client.query("COMMIT");
+        return true;
+      } catch (error) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (_rollbackError) {
+          // ignore rollback failure
+        }
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    async listVoucherAssignmentsForUser(userId, cardNumber) {
+      const r = await q(
+        `SELECT
+           va.id AS assignment_id,
+           va.voucher_id,
+           va.user_id,
+           va.card_number,
+           va.assignment_type,
+           va.amount_snapshot,
+           va.assigned_at,
+           va.valid_from,
+           va.expires_at,
+           va.used_at,
+           va.period_key,
+           va.status AS assignment_status,
+           v.barcode,
+           v.status AS voucher_status,
+           v.currency
+         FROM voucher_assignments va
+         INNER JOIN vouchers v ON v.id = va.voucher_id
+         WHERE va.user_id = $1 OR (va.card_number = $2 AND $2 <> '')
+         ORDER BY va.assigned_at DESC, va.id DESC`,
+        [userId, cardNumber || ""],
+      );
+      return r.rows.map(mapVoucherAssignmentRow);
+    },
+    async addVoucherEvent(event) {
+      await q(
+        `INSERT INTO voucher_events (id, voucher_id, assignment_id, event_type, actor_type, actor_id, meta_json, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          event.id,
+          event.voucherId,
+          event.assignmentId || null,
+          event.eventType,
+          event.actorType,
+          event.actorId,
+          event.metaJson,
+          event.createdAt,
+        ],
+      );
+      return event;
+    },
+    async listVoucherRules() {
+      const r = await q("SELECT key, value_text AS \"valueText\", updated_at AS \"updatedAt\" FROM voucher_rules ORDER BY key ASC");
+      return r.rows;
+    },
+    async upsertVoucherRule(key, valueText, updatedAt) {
+      const r = await q(
+        `INSERT INTO voucher_rules (key, value_text, updated_at)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (key) DO UPDATE SET value_text = EXCLUDED.value_text, updated_at = EXCLUDED.updated_at
+         RETURNING key, value_text AS "valueText", updated_at AS "updatedAt"`,
+        [key, valueText, updatedAt],
+      );
+      return r.rows[0] || null;
     },
   };
 }

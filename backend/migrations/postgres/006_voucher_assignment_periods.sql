@@ -1,0 +1,2 @@
+ALTER TABLE voucher_assignments
+ADD COLUMN IF NOT EXISTS period_key TEXT NOT NULL DEFAULT '';

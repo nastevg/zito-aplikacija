@@ -5,6 +5,7 @@ const cors = require("cors");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const XLSX = require("xlsx");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { dbFactory } = require("./db");
@@ -66,6 +67,18 @@ const ASSET_EXT_TO_MIME = {
 };
 const NOTIFICATION_ASSET_GROUP = "notifications";
 const HOME_TOP_GROUP = "home_top";
+const VOUCHER_STATUSES = new Set(["free", "assigned", "used", "expired", "void"]);
+const DEFAULT_VOUCHER_RULES = {
+  signup_enabled: "false",
+  signup_amount: "0",
+  signup_valid_days: "30",
+  monthly_5000_enabled: "false",
+  monthly_5000_amount: "0",
+  monthly_5000_valid_days: "30",
+  monthly_10000_enabled: "false",
+  monthly_10000_amount: "0",
+  monthly_10000_valid_days: "30",
+};
 
 app.use(cors());
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
@@ -123,6 +136,300 @@ function isValidBarcode(barcode) {
 
 function normalizePriceQuery(input) {
   return String(input || "").trim().slice(0, 120);
+}
+
+function normalizeVoucherAmount(input) {
+  const raw = String(input ?? "").trim();
+  if (!raw) return null;
+  const normalized = raw.replace(/[^\d,.-]/g, "").replace(/\s+/g, "").replace(",", ".");
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return Math.round(amount * 100) / 100;
+}
+
+function parseVoucherWorkbook(buffer) {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) return [];
+  const sheet = workbook.Sheets[firstSheetName];
+  return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: "" });
+}
+
+function safeJsonStringify(value) {
+  try {
+    return JSON.stringify(value || {});
+  } catch (_error) {
+    return "{}";
+  }
+}
+
+function addDaysIso(date, days) {
+  const next = new Date(date.getTime());
+  next.setUTCDate(next.getUTCDate() + Math.max(0, Number(days) || 0));
+  return next.toISOString();
+}
+
+function currentMonthKey(date = new Date(), timeZone = PRICE_REFRESH_TIMEZONE) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value || "0000";
+  const month = parts.find((part) => part.type === "month")?.value || "00";
+  return `${year}-${month}`;
+}
+
+function parseLoyaltyPurchaseDate(input) {
+  const value = String(input || "").trim();
+  if (!value) return null;
+  const direct = new Date(value);
+  if (!Number.isNaN(direct.getTime())) return direct;
+
+  const dotMatch = value.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (dotMatch) {
+    const [, day, month, year, hour = "0", minute = "0", second = "0"] = dotMatch;
+    const normalized = new Date(Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    ));
+    if (!Number.isNaN(normalized.getTime())) return normalized;
+  }
+
+  const compactMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (compactMatch) {
+    const [, year, month, day, hour = "0", minute = "0", second = "0"] = compactMatch;
+    const normalized = new Date(Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    ));
+    if (!Number.isNaN(normalized.getTime())) return normalized;
+  }
+  return null;
+}
+
+function calculateMonthlyTurnover(items, monthKey) {
+  let total = 0;
+  for (const item of items || []) {
+    const purchaseDate = parseLoyaltyPurchaseDate(item?.datumSka);
+    if (!purchaseDate || currentMonthKey(purchaseDate) !== monthKey) continue;
+    const value = asNumberValue(item?.vrednost);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    total += value;
+  }
+  return Math.round(total * 100) / 100;
+}
+
+function classifyVoucherAssignment(row, now = new Date()) {
+  const usedAt = row.usedAt ? new Date(row.usedAt) : null;
+  if (usedAt && !Number.isNaN(usedAt.getTime())) return "used";
+  const expiresAt = row.expiresAt ? new Date(row.expiresAt) : null;
+  if (expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() < now.getTime()) return "expired";
+  return "active";
+}
+
+function isVoucherAssignmentExpired(row, now = new Date()) {
+  const expiresAt = row?.expiresAt ? new Date(row.expiresAt) : null;
+  if (!expiresAt || Number.isNaN(expiresAt.getTime())) return false;
+  return expiresAt.getTime() < now.getTime();
+}
+
+function normalizeVoucherRules(rows) {
+  const merged = { ...DEFAULT_VOUCHER_RULES };
+  for (const row of rows || []) {
+    const key = String(row?.key || "").trim();
+    if (!key || !Object.prototype.hasOwnProperty.call(merged, key)) continue;
+    merged[key] = String(row?.valueText ?? "");
+  }
+  return merged;
+}
+
+async function tryAssignSignupVoucher(user) {
+  const rules = normalizeVoucherRules(await db.listVoucherRules());
+  const signupEnabled = String(rules.signup_enabled || "").trim().toLowerCase() === "true";
+  const signupAmount = Number(rules.signup_amount || 0);
+  const signupValidDays = Math.max(1, Math.min(3650, Number(rules.signup_valid_days) || 30));
+  if (!signupEnabled || !Number.isFinite(signupAmount) || signupAmount <= 0) {
+    return { assigned: false, reason: "signup_rule_disabled" };
+  }
+
+  const voucher = await db.findFreeVoucher({ amount: signupAmount });
+  if (!voucher) {
+    return { assigned: false, reason: "no_matching_free_voucher" };
+  }
+
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const marked = await db.markVoucherAssigned(voucher.id, nowIso);
+  if (!marked) {
+    return { assigned: false, reason: "voucher_already_taken" };
+  }
+
+  const assignment = {
+    id: `va_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    voucherId: voucher.id,
+    userId: user.id,
+    cardNumber: user.cardNumber || "",
+    assignmentType: "signup_auto",
+    amountSnapshot: voucher.amount,
+    assignedBy: "system",
+    assignedAt: nowIso,
+    validFrom: nowIso,
+    expiresAt: addDaysIso(now, signupValidDays),
+    usedAt: null,
+    usedReference: null,
+    status: "active",
+  };
+  await db.createVoucherAssignment(assignment);
+  await db.addVoucherEvent({
+    id: `ve_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    voucherId: voucher.id,
+    assignmentId: assignment.id,
+    eventType: "assigned",
+    actorType: "system",
+    actorId: "signup-auto",
+    metaJson: safeJsonStringify({
+      userId: user.id,
+      cardNumber: user.cardNumber || "",
+      ruleAmount: signupAmount,
+      validDays: signupValidDays,
+    }),
+    createdAt: nowIso,
+  });
+  return {
+    assigned: true,
+    voucherId: voucher.id,
+    barcode: voucher.barcode,
+    amount: voucher.amount,
+    expiresAt: assignment.expiresAt,
+  };
+}
+
+async function tryAssignVoucherToUser(user, options) {
+  const voucher = await db.findFreeVoucher({ amount: options.ruleAmount });
+  if (!voucher) {
+    return { assigned: false, reason: "no_matching_free_voucher" };
+  }
+
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const marked = await db.markVoucherAssigned(voucher.id, nowIso);
+  if (!marked) {
+    return { assigned: false, reason: "voucher_already_taken" };
+  }
+
+  const assignment = {
+    id: `va_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    voucherId: voucher.id,
+    userId: user.id,
+    cardNumber: user.cardNumber || "",
+    assignmentType: options.assignmentType,
+    amountSnapshot: voucher.amount,
+    assignedBy: options.assignedBy || "system",
+    assignedAt: nowIso,
+    validFrom: nowIso,
+    expiresAt: addDaysIso(now, options.validDays),
+    usedAt: null,
+    usedReference: options.usedReference || null,
+    periodKey: options.periodKey || "",
+    status: "active",
+  };
+  await db.createVoucherAssignment(assignment);
+  await db.addVoucherEvent({
+    id: `ve_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    voucherId: voucher.id,
+    assignmentId: assignment.id,
+    eventType: "assigned",
+    actorType: options.actorType || "system",
+    actorId: options.actorId || options.assignmentType,
+    metaJson: safeJsonStringify(options.meta || {}),
+    createdAt: nowIso,
+  });
+  return {
+    assigned: true,
+    voucherId: voucher.id,
+    barcode: voucher.barcode,
+    amount: voucher.amount,
+    expiresAt: assignment.expiresAt,
+    assignmentId: assignment.id,
+  };
+}
+
+async function tryAssignMonthlyTurnoverVouchers(user, purchases) {
+  const rules = normalizeVoucherRules(await db.listVoucherRules());
+  const monthKey = currentMonthKey(new Date());
+  const turnover = calculateMonthlyTurnover(purchases, monthKey);
+  const configs = [
+    {
+      threshold: 5000,
+      ruleEnabledKey: "monthly_5000_enabled",
+      ruleAmountKey: "monthly_5000_amount",
+      ruleValidDaysKey: "monthly_5000_valid_days",
+      assignmentType: "monthly_turnover_5000",
+    },
+    {
+      threshold: 10000,
+      ruleEnabledKey: "monthly_10000_enabled",
+      ruleAmountKey: "monthly_10000_amount",
+      ruleValidDaysKey: "monthly_10000_valid_days",
+      assignmentType: "monthly_turnover_10000",
+    },
+  ];
+
+  const results = [];
+  for (const config of configs) {
+    const enabled = String(rules[config.ruleEnabledKey] || "").trim().toLowerCase() === "true";
+    const ruleAmount = Number(rules[config.ruleAmountKey] || 0);
+    const validDays = Math.max(1, Math.min(3650, Number(rules[config.ruleValidDaysKey]) || 30));
+    if (!enabled || !Number.isFinite(ruleAmount) || ruleAmount <= 0) {
+      results.push({ assignmentType: config.assignmentType, assigned: false, reason: "rule_disabled" });
+      continue;
+    }
+    if (turnover < config.threshold) {
+      results.push({ assignmentType: config.assignmentType, assigned: false, reason: "threshold_not_met" });
+      continue;
+    }
+
+    const existing = await db.findVoucherAssignmentByPeriod({
+      userId: user.id,
+      cardNumber: user.cardNumber || "",
+      assignmentType: config.assignmentType,
+      periodKey: monthKey,
+    });
+    if (existing) {
+      results.push({ assignmentType: config.assignmentType, assigned: false, reason: "already_assigned_for_period" });
+      continue;
+    }
+
+    const assigned = await tryAssignVoucherToUser(user, {
+      assignmentType: config.assignmentType,
+      ruleAmount,
+      validDays,
+      assignedBy: "system",
+      actorType: "system",
+      actorId: config.assignmentType,
+      periodKey: monthKey,
+      meta: {
+        userId: user.id,
+        cardNumber: user.cardNumber || "",
+        threshold: config.threshold,
+        turnover,
+        monthKey,
+        ruleAmount,
+        validDays,
+      },
+    });
+    results.push({ assignmentType: config.assignmentType, turnover, monthKey, ...assigned });
+  }
+  return { turnover, monthKey, results };
 }
 
 function normalizeSearchText(input) {
@@ -981,6 +1288,292 @@ app.delete("/admin/apk-gallery/:group/:file", requireAdmin, async (req, res) => 
   return res.json({ ok: true, group, file, deletedFromDb: dbDeleted, deletedFromFs: fsDeleted });
 });
 
+app.get("/admin/vouchers/summary", requireAdmin, async (_req, res) => {
+  try {
+    const summary = await db.getVoucherSummary();
+    return res.json(summary);
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error || "voucher_summary_failed") });
+  }
+});
+
+app.get("/admin/vouchers", requireAdmin, async (req, res) => {
+  try {
+    const status = String(req.query.status || "").trim();
+    const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
+    if (status && !VOUCHER_STATUSES.has(status)) {
+      return res.status(400).json({ error: "Invalid voucher status" });
+    }
+    const rows = await db.listVouchers({ status, limit });
+    return res.json(rows);
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error || "voucher_list_failed") });
+  }
+});
+
+app.get("/admin/voucher-rules", requireAdmin, async (_req, res) => {
+  try {
+    const rows = await db.listVoucherRules();
+    return res.json(normalizeVoucherRules(rows));
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error || "voucher_rules_load_failed") });
+  }
+});
+
+app.post("/admin/voucher-rules", requireAdmin, async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const now = new Date().toISOString();
+    const normalized = {
+      signup_enabled: String(Boolean(payload.signup_enabled)),
+      signup_amount: String(Math.max(0, Number(payload.signup_amount) || 0)),
+      signup_valid_days: String(Math.max(1, Math.min(3650, Number(payload.signup_valid_days) || 30))),
+      monthly_5000_enabled: String(Boolean(payload.monthly_5000_enabled)),
+      monthly_5000_amount: String(Math.max(0, Number(payload.monthly_5000_amount) || 0)),
+      monthly_5000_valid_days: String(Math.max(1, Math.min(3650, Number(payload.monthly_5000_valid_days) || 30))),
+      monthly_10000_enabled: String(Boolean(payload.monthly_10000_enabled)),
+      monthly_10000_amount: String(Math.max(0, Number(payload.monthly_10000_amount) || 0)),
+      monthly_10000_valid_days: String(Math.max(1, Math.min(3650, Number(payload.monthly_10000_valid_days) || 30))),
+    };
+    for (const [key, value] of Object.entries(normalized)) {
+      await db.upsertVoucherRule(key, value, now);
+    }
+    return res.json({ ok: true, rules: normalized });
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error || "voucher_rules_save_failed") });
+  }
+});
+
+app.post("/admin/vouchers/import", requireAdmin, async (req, res) => {
+  try {
+    const fileName = String(req.body?.fileName || "").trim();
+    const dataBase64 = String(req.body?.dataBase64 || "").trim();
+    if (!fileName || !dataBase64) {
+      return res.status(400).json({ error: "fileName and dataBase64 are required" });
+    }
+    if (!/\.xlsx?$/i.test(fileName)) {
+      return res.status(400).json({ error: "Only XLS/XLSX files are supported" });
+    }
+
+    const workbookRows = parseVoucherWorkbook(Buffer.from(dataBase64, "base64"));
+    const importBatchId = `vb_${Date.now()}`;
+    const now = new Date().toISOString();
+    const seenInFile = new Set();
+    const invalidRows = [];
+    const duplicatesInFile = [];
+    const duplicatesInDb = [];
+    let imported = 0;
+    let scanned = 0;
+
+    for (let idx = 0; idx < workbookRows.length; idx += 1) {
+      const row = Array.isArray(workbookRows[idx]) ? workbookRows[idx] : [];
+      const rawBarcode = row[0];
+      const rawAmount = row[1];
+      if (!String(rawBarcode || "").trim() && !String(rawAmount || "").trim()) continue;
+      scanned += 1;
+
+      const barcode = normalizeBarcode(rawBarcode);
+      const amount = normalizeVoucherAmount(rawAmount);
+      if (!isValidBarcode(barcode) || amount == null) {
+        invalidRows.push({ row: idx + 1, barcode: String(rawBarcode || ""), amount: String(rawAmount || "") });
+        continue;
+      }
+      if (seenInFile.has(barcode)) {
+        duplicatesInFile.push({ row: idx + 1, barcode });
+        continue;
+      }
+      seenInFile.add(barcode);
+
+      const existing = await db.getVoucherByBarcode(barcode);
+      if (existing) {
+        duplicatesInDb.push({ row: idx + 1, barcode });
+        continue;
+      }
+
+      const created = await db.createVoucher({
+        id: `v_${Date.now()}_${idx}`,
+        barcode,
+        amount,
+        currency: "MKD",
+        status: "free",
+        sourceFile: fileName,
+        importBatchId,
+        createdAt: now,
+        updatedAt: now,
+      });
+      if (!created) {
+        duplicatesInDb.push({ row: idx + 1, barcode });
+        continue;
+      }
+      imported += 1;
+      await db.addVoucherEvent({
+        id: `ve_${Date.now()}_${idx}`,
+        voucherId: created.id,
+        assignmentId: "",
+        eventType: "imported",
+        actorType: "admin",
+        actorId: "admin-import",
+        metaJson: safeJsonStringify({ importBatchId, fileName, row: idx + 1 }),
+        createdAt: now,
+      });
+    }
+
+    return res.json({
+      ok: true,
+      importBatchId,
+      fileName,
+      scannedRows: scanned,
+      imported,
+      duplicatesInFile: duplicatesInFile.length,
+      duplicatesInDb: duplicatesInDb.length,
+      invalidRows: invalidRows.length,
+      sampleInvalidRows: invalidRows.slice(0, 10),
+      sampleDuplicatesInFile: duplicatesInFile.slice(0, 10),
+      sampleDuplicatesInDb: duplicatesInDb.slice(0, 10),
+    });
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error || "voucher_import_failed") });
+  }
+});
+
+app.post("/admin/vouchers/assign", requireAdmin, async (req, res) => {
+  try {
+    const cardNumber = normalizeCardNumber(req.body?.cardNumber);
+    const barcode = normalizeBarcode(req.body?.barcode);
+    const validDays = Math.max(0, Math.min(3650, Number(req.body?.validDays) || 30));
+    if (!isValidCardNumber(cardNumber)) {
+      return res.status(400).json({ error: "Invalid loyalty card number format" });
+    }
+
+    const user = await db.getUserByCardNumber(cardNumber);
+    if (!user) {
+      return res.status(404).json({ error: "No user found for this loyalty card number" });
+    }
+
+    const voucher = await db.findFreeVoucher({ barcode });
+    if (!voucher) {
+      return res.status(404).json({ error: barcode ? "Voucher barcode is not free or does not exist" : "No free vouchers available" });
+    }
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const expiresAt = addDaysIso(now, validDays);
+    const marked = await db.markVoucherAssigned(voucher.id, nowIso);
+    if (!marked) {
+      return res.status(409).json({ error: "Voucher is no longer free" });
+    }
+
+    const assignment = {
+      id: `va_${Date.now()}`,
+      voucherId: voucher.id,
+      userId: user.id,
+      cardNumber,
+      assignmentType: "manual_admin",
+      amountSnapshot: voucher.amount,
+      assignedBy: "admin",
+      assignedAt: nowIso,
+      validFrom: nowIso,
+      expiresAt,
+      usedAt: "",
+      usedReference: "",
+      status: "active",
+    };
+    await db.createVoucherAssignment(assignment);
+    await db.addVoucherEvent({
+      id: `ve_${Date.now()}_assign`,
+      voucherId: voucher.id,
+      assignmentId: assignment.id,
+      eventType: "assigned",
+      actorType: "admin",
+      actorId: "manual-assign",
+      metaJson: safeJsonStringify({ cardNumber, userId: user.id, validDays }),
+      createdAt: nowIso,
+    });
+
+    const assignedVoucher = await db.getVoucherById(voucher.id);
+    return res.json({
+      ok: true,
+      assignment: {
+        id: assignment.id,
+        cardNumber,
+        userId: user.id,
+        voucher: assignedVoucher,
+        validFrom: assignment.validFrom,
+        expiresAt: assignment.expiresAt,
+        status: assignment.status,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error || "voucher_assign_failed") });
+  }
+});
+
+app.post("/admin/vouchers/redeem", requireAdmin, async (req, res) => {
+  try {
+    const barcode = normalizeBarcode(req.body?.barcode);
+    const cardNumber = normalizeCardNumber(req.body?.cardNumber);
+    const usedReference = String(req.body?.usedReference || "").trim().slice(0, 120);
+    if (!isValidBarcode(barcode)) {
+      return res.status(400).json({ error: "Valid voucher barcode is required" });
+    }
+
+    const assignment = await db.getVoucherAssignmentByBarcode(barcode);
+    if (!assignment) {
+      return res.status(404).json({ error: "Voucher assignment not found" });
+    }
+    if (assignment.voucherStatus !== "assigned" || assignment.status !== "active") {
+      return res.status(409).json({ error: "Voucher is not redeemable" });
+    }
+    if (assignment.usedAt) {
+      return res.status(409).json({ error: "Voucher is already used" });
+    }
+    if (isVoucherAssignmentExpired(assignment)) {
+      return res.status(409).json({ error: "Voucher is expired" });
+    }
+    if (cardNumber && assignment.cardNumber && assignment.cardNumber !== cardNumber) {
+      return res.status(409).json({ error: "Voucher does not belong to this loyalty card" });
+    }
+
+    const usedAt = new Date().toISOString();
+    const redeemed = await db.redeemVoucherAssignment({
+      assignmentId: assignment.id,
+      voucherId: assignment.voucherId,
+      usedAt,
+      usedReference,
+    });
+    if (!redeemed) {
+      return res.status(409).json({ error: "Voucher was already redeemed or is no longer valid" });
+    }
+
+    await db.addVoucherEvent({
+      id: `ve_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      voucherId: assignment.voucherId,
+      assignmentId: assignment.id,
+      eventType: "used",
+      actorType: "admin",
+      actorId: "manual-redeem",
+      metaJson: safeJsonStringify({
+        barcode,
+        cardNumber: assignment.cardNumber || "",
+        usedReference,
+      }),
+      createdAt: usedAt,
+    });
+
+    return res.json({
+      ok: true,
+      barcode,
+      usedAt,
+      cardNumber: assignment.cardNumber || "",
+      amount: assignment.amount,
+      currency: assignment.currency || "MKD",
+      assignmentType: assignment.assignmentType,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error || "voucher_redeem_failed") });
+  }
+});
+
 app.post("/auth/register", async (req, res) => {
   const { name, email, password, loyaltyCardNumber } = req.body || {};
   const normalizedName = String(name || "").trim();
@@ -1029,8 +1622,15 @@ app.post("/auth/register", async (req, res) => {
     cardNumber: assignedCardNumber,
   };
   await db.createUser(user);
+  let signupVoucherAssigned = false;
+  try {
+    const signupVoucherResult = await tryAssignSignupVoucher(user);
+    signupVoucherAssigned = Boolean(signupVoucherResult?.assigned);
+  } catch (error) {
+    console.error("signup_voucher_assignment_failed", error);
+  }
 
-  return res.json({ token: issueToken(user.id), user: sanitizeUser(user) });
+  return res.json({ token: issueToken(user.id), user: sanitizeUser(user), signupVoucherAssigned });
 });
 
 app.post("/auth/login", async (req, res) => {
@@ -1150,6 +1750,22 @@ app.get("/me", requireAuth, (req, res) => {
   if (!user) return res.status(404).json({ error: "User not found" });
   return res.json(sanitizeUser(user));
   }).catch((error) => res.status(500).json({ error: String(error) }));
+});
+
+app.get("/me/vouchers", requireAuth, async (req, res) => {
+  try {
+    const user = await db.getUserById(req.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const rows = await db.listVoucherAssignmentsForUser(user.id, user.cardNumber || "");
+    return res.json({
+      items: rows.map((row) => ({
+        ...row,
+        viewStatus: classifyVoucherAssignment(row),
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error || "voucher_user_list_failed") });
+  }
 });
 
 app.post("/me/profile", requireAuth, async (req, res) => {
@@ -1273,7 +1889,13 @@ app.get("/loyalty/purchases", requireAuth, async (req, res) => {
     if (!isValidCardNumber(barkod)) return res.status(400).json({ error: "No valid loyalty card linked" });
     const soap = await callLoyaltySoap("ZemiLicnaSmetka", barkod);
     if (!soap.ok) return res.status(502).json({ error: `Loyalty service unavailable: ${soap.error}` });
-    return res.json({ items: parseLoyaltyPurchases(soap.raw) });
+    const items = parseLoyaltyPurchases(soap.raw);
+    try {
+      await tryAssignMonthlyTurnoverVouchers(user, items);
+    } catch (error) {
+      console.error("monthly_voucher_assignment_failed", error);
+    }
+    return res.json({ items });
   } catch (error) {
     return res.status(500).json({ error: String(error) });
   }
