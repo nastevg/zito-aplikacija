@@ -288,12 +288,14 @@
         <input id="ruleSignupValidDays" type="number" min="1" max="3650" placeholder="Денови на важност за регистрација" />
         <div class="meta" style="margin: 8px 0 6px 0">Месечен промет > 5000</div>
         <label><input id="ruleMonthly5000Enabled" type="checkbox" style="width:auto;margin-right:8px" /> Овозможи правило за 5000</label>
-        <div class="meta">Prvo pole = iznos na vaucher za korisnik so promet nad 5000 denari. Vtoro pole = denovi na vazhnost.</div>
+        <div class="meta">Pole 1 = prag na promet. Pole 2 = iznos na vaucher. Pole 3 = denovi na vazhnost.</div>
+        <input id="ruleMonthly5000Threshold" type="number" min="1" step="1" placeholder="Prag na promet za pravilo 1" />
         <input id="ruleMonthly5000Amount" type="number" min="0" step="0.01" placeholder="Износ на ваучер за >5000" />
         <input id="ruleMonthly5000ValidDays" type="number" min="1" max="3650" placeholder="Денови на важност за >5000" />
         <div class="meta" style="margin: 8px 0 6px 0">Месечен промет > 10000</div>
         <label><input id="ruleMonthly10000Enabled" type="checkbox" style="width:auto;margin-right:8px" /> Овозможи правило за 10000</label>
-        <div class="meta">Prvo pole = iznos na vaucher za korisnik so promet nad 10000 denari. Vtoro pole = denovi na vazhnost.</div>
+        <div class="meta">Pole 1 = prag na promet. Pole 2 = iznos na vaucher. Pole 3 = denovi na vazhnost.</div>
+        <input id="ruleMonthly10000Threshold" type="number" min="1" step="1" placeholder="Prag na promet za pravilo 2" />
         <input id="ruleMonthly10000Amount" type="number" min="0" step="0.01" placeholder="Износ на ваучер за >10000" />
         <input id="ruleMonthly10000ValidDays" type="number" min="1" max="3650" placeholder="Денови на важност за >10000" />
         <button type="button" onclick="saveVoucherRules()">Зачувај правила</button>
@@ -340,9 +342,11 @@
       const ruleSignupAmount = document.getElementById("ruleSignupAmount");
       const ruleSignupValidDays = document.getElementById("ruleSignupValidDays");
       const ruleMonthly5000Enabled = document.getElementById("ruleMonthly5000Enabled");
+      const ruleMonthly5000Threshold = document.getElementById("ruleMonthly5000Threshold");
       const ruleMonthly5000Amount = document.getElementById("ruleMonthly5000Amount");
       const ruleMonthly5000ValidDays = document.getElementById("ruleMonthly5000ValidDays");
       const ruleMonthly10000Enabled = document.getElementById("ruleMonthly10000Enabled");
+      const ruleMonthly10000Threshold = document.getElementById("ruleMonthly10000Threshold");
       const ruleMonthly10000Amount = document.getElementById("ruleMonthly10000Amount");
       const ruleMonthly10000ValidDays = document.getElementById("ruleMonthly10000ValidDays");
       let pendingПрикачиTarget = null;
@@ -708,9 +712,11 @@
         ruleSignupAmount.value = String(rules.signup_amount || "0");
         ruleSignupValidDays.value = String(rules.signup_valid_days || "30");
         ruleMonthly5000Enabled.checked = String(rules.monthly_5000_enabled) === "true";
+        ruleMonthly5000Threshold.value = String(rules.monthly_5000_threshold || "5000");
         ruleMonthly5000Amount.value = String(rules.monthly_5000_amount || "0");
         ruleMonthly5000ValidDays.value = String(rules.monthly_5000_valid_days || "30");
         ruleMonthly10000Enabled.checked = String(rules.monthly_10000_enabled) === "true";
+        ruleMonthly10000Threshold.value = String(rules.monthly_10000_threshold || "10000");
         ruleMonthly10000Amount.value = String(rules.monthly_10000_amount || "0");
         ruleMonthly10000ValidDays.value = String(rules.monthly_10000_valid_days || "30");
       }
@@ -721,9 +727,11 @@
           signup_amount: Number(ruleSignupAmount.value || 0),
           signup_valid_days: Number(ruleSignupValidDays.value || 30),
           monthly_5000_enabled: ruleMonthly5000Enabled.checked,
+          monthly_5000_threshold: Number(ruleMonthly5000Threshold.value || 5000),
           monthly_5000_amount: Number(ruleMonthly5000Amount.value || 0),
           monthly_5000_valid_days: Number(ruleMonthly5000ValidDays.value || 30),
           monthly_10000_enabled: ruleMonthly10000Enabled.checked,
+          monthly_10000_threshold: Number(ruleMonthly10000Threshold.value || 10000),
           monthly_10000_amount: Number(ruleMonthly10000Amount.value || 0),
           monthly_10000_valid_days: Number(ruleMonthly10000ValidDays.value || 30),
         });

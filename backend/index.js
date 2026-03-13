@@ -73,9 +73,11 @@ const DEFAULT_VOUCHER_RULES = {
   signup_amount: "0",
   signup_valid_days: "30",
   monthly_5000_enabled: "false",
+  monthly_5000_threshold: "5000",
   monthly_5000_amount: "0",
   monthly_5000_valid_days: "30",
   monthly_10000_enabled: "false",
+  monthly_10000_threshold: "10000",
   monthly_10000_amount: "0",
   monthly_10000_valid_days: "30",
 };
@@ -369,14 +371,16 @@ async function tryAssignMonthlyTurnoverVouchers(user, purchases) {
   const turnover = calculateMonthlyTurnover(purchases, monthKey);
   const configs = [
     {
-      threshold: 5000,
+      defaultThreshold: 5000,
+      ruleThresholdKey: "monthly_5000_threshold",
       ruleEnabledKey: "monthly_5000_enabled",
       ruleAmountKey: "monthly_5000_amount",
       ruleValidDaysKey: "monthly_5000_valid_days",
       assignmentType: "monthly_turnover_5000",
     },
     {
-      threshold: 10000,
+      defaultThreshold: 10000,
+      ruleThresholdKey: "monthly_10000_threshold",
       ruleEnabledKey: "monthly_10000_enabled",
       ruleAmountKey: "monthly_10000_amount",
       ruleValidDaysKey: "monthly_10000_valid_days",
@@ -387,13 +391,14 @@ async function tryAssignMonthlyTurnoverVouchers(user, purchases) {
   const results = [];
   for (const config of configs) {
     const enabled = String(rules[config.ruleEnabledKey] || "").trim().toLowerCase() === "true";
+    const threshold = Math.max(1, Number(rules[config.ruleThresholdKey] || config.defaultThreshold) || config.defaultThreshold);
     const ruleAmount = Number(rules[config.ruleAmountKey] || 0);
     const validDays = Math.max(1, Math.min(3650, Number(rules[config.ruleValidDaysKey]) || 30));
     if (!enabled || !Number.isFinite(ruleAmount) || ruleAmount <= 0) {
       results.push({ assignmentType: config.assignmentType, assigned: false, reason: "rule_disabled" });
       continue;
     }
-    if (turnover < config.threshold) {
+    if (turnover < threshold) {
       results.push({ assignmentType: config.assignmentType, assigned: false, reason: "threshold_not_met" });
       continue;
     }
@@ -420,7 +425,7 @@ async function tryAssignMonthlyTurnoverVouchers(user, purchases) {
       meta: {
         userId: user.id,
         cardNumber: user.cardNumber || "",
-        threshold: config.threshold,
+        threshold,
         turnover,
         monthKey,
         ruleAmount,
@@ -1329,9 +1334,11 @@ app.post("/admin/voucher-rules", requireAdmin, async (req, res) => {
       signup_amount: String(Math.max(0, Number(payload.signup_amount) || 0)),
       signup_valid_days: String(Math.max(1, Math.min(3650, Number(payload.signup_valid_days) || 30))),
       monthly_5000_enabled: String(Boolean(payload.monthly_5000_enabled)),
+      monthly_5000_threshold: String(Math.max(1, Number(payload.monthly_5000_threshold) || 5000)),
       monthly_5000_amount: String(Math.max(0, Number(payload.monthly_5000_amount) || 0)),
       monthly_5000_valid_days: String(Math.max(1, Math.min(3650, Number(payload.monthly_5000_valid_days) || 30))),
       monthly_10000_enabled: String(Boolean(payload.monthly_10000_enabled)),
+      monthly_10000_threshold: String(Math.max(1, Number(payload.monthly_10000_threshold) || 10000)),
       monthly_10000_amount: String(Math.max(0, Number(payload.monthly_10000_amount) || 0)),
       monthly_10000_valid_days: String(Math.max(1, Math.min(3650, Number(payload.monthly_10000_valid_days) || 30))),
     };
