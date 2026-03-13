@@ -481,3 +481,18 @@
 - Git delivery:
   - `bd7dd40` analytics view in Flyers tab
   - `6caa6dd` native date picker for from/to filters
+
+## March 13, 2026 - [Rollback] Reverted vouchers and restored requested app state
+- Reverted voucher module changes from backend, CMS and mobile app:
+  - revert commit: `43aa654` (revert of `f4bbc3d`)
+- Temporarily reverted flyers contain-mode and then restored it per request:
+  - `0996bb0` (revert of `2831325`)
+  - `f69b5bf` (re-apply of `2831325` state)
+- Current requested state is now aligned with:
+  - `2831325` behavior (`Use contain mode for current flyers to avoid image cropping`)
+- Android delivery:
+  - Built `release` APK (`app-release.apk`)
+  - Installed on connected device via ADB (`Success`)
+  - App launches directly (non-dev client build)
+- Deployment note:
+  - Render backend should be updated with `Manual Deploy -> Deploy latest commit` from `main`.
