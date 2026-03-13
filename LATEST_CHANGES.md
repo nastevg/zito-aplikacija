@@ -1,5 +1,15 @@
 # Latest Changes
 
+## March 13, 2026 - [Mobile/Analytics] Flyers screen renamed to analysis
+- Updated the former flyers analytics screen naming in the mobile app:
+  - screen title changed from `Digital Flyers` / `Дигитални флаери` to `Detailed Analysis` / `Детална анализа`
+  - bottom tab label changed from `Flyers` / `Летоци` to `Analysis` / `Анализа`
+  - subtitle wording updated to match the analysis-focused screen purpose
+- Delivery:
+  - pushed to `main` (commit `215b5a4`)
+  - built fresh Android release APK
+  - installed successfully on connected device
+
 ## March 13, 2026 - [Loyalty/Vouchers] Voucher module restored and expanded
 - Added full voucher management flow across backend, CMS, and mobile app:
   - Excel import of one-time voucher barcodes with amounts from `.xls/.xlsx`
